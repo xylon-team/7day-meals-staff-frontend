@@ -1,36 +1,120 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 7day Meals Staff Frontend
 
-## Getting Started
+A minimal Next.js app for the 7day Meals staff interface. The project currently uses the App Router, TypeScript, and the default Next.js asset pipeline.
 
-First, run the development server:
+## Setup
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Build for production:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+```
 
-## Learn More
+Run the production server:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run start
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Run the linter:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run lint
+```
 
-## Deploy on Vercel
+## Scripts
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+These scripts are defined in `package.json`:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `dev` - start the local Next.js development server
+- `build` - create a production build
+- `start` - start the production server
+- `lint` - run ESLint
+
+## Folder Structure
+
+```text
+.
+├── .gitignore
+├── AGENTS.md
+├── CLAUDE.md
+├── README.md
+├── app/
+│   ├── components/
+│   │   └── .gitkeep
+│   ├── favicon.ico
+│   ├── globals.css
+│   ├── layout.tsx
+│   ├── lib/
+│   │   └── .gitkeep
+│   ├── pages/
+│   │   ├── login/
+│   │   │   ├── assets/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── components/
+│   │   │   │   └── .gitkeep
+│   │   │   └── LoginPage.tsx
+│   │   └── overview/
+│   │       └── .gitkeep
+│   ├── page.tsx
+│   └── utils/
+│       └── .gitkeep
+├── eslint.config.mjs
+├── next-env.d.ts
+├── next.config.ts
+├── package-lock.json
+├── package.json
+├── postcss.config.mjs
+├── public/
+│   ├── file.svg
+│   ├── globe.svg
+│   ├── next.svg
+│   ├── vercel.svg
+│   └── window.svg
+└── tsconfig.json
+```
+
+## Directory Notes
+
+- `app/pages/` groups feature-oriented screens such as login and overview.
+- `app/pages/login/` is the login feature folder and contains the page component plus its local assets and components folders.
+- `app/components/` is for shared UI components used across multiple features.
+- `app/lib/` is for shared domain logic, API helpers, and data access code.
+- `app/utils/` is for general utility helpers that do not belong to one feature.
+- `public/` stores static assets that can be referenced directly from the app.
+- `AGENTS.md` and `CLAUDE.md` document workspace-specific agent guidance.
+- `package.json` defines the app scripts and dependency versions.
+- `tsconfig.json` and `next.config.ts` hold TypeScript and Next.js configuration.
+
+## `.gitkeep`
+
+Git does not track empty folders, so `.gitkeep` files are used to keep placeholder directories in the repository until real files are added. The sample `.gitkeep` files here are short notes for the intended folder purpose, and you can remove them once the folders contain actual code or assets.
+
+## Feature Folder Pattern
+
+When you add another generated feature or resource, follow the same pattern as `app/pages/login/`:
+
+- create a folder under `app/pages/<feature-name>/`
+- keep feature-local components in `components/`
+- keep feature-local assets in `assets/`
+- add a page entry component such as `FeaturePage.tsx`
+- use `app/lib/` or `app/utils/` for shared code that should not live inside one feature
+
+## Notes
+
+- This repository does not document generated output folders such as `node_modules/`, `.next/`, `dist/`, or `build/`.
+- The default scaffold text has been replaced with project-specific documentation.
