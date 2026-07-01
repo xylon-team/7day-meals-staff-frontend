@@ -118,3 +118,43 @@ When you add another generated feature or resource, follow the same pattern as `
 
 - This repository does not document generated output folders such as `node_modules/`, `.next/`, `dist/`, or `build/`.
 - The default scaffold text has been replaced with project-specific documentation.
+
+## Learn More
+
+- [Next.js Documentation](https://nextjs.org/docs)
+- [React Documentation](https://react.dev)
+
+## Deploy on Vercel
+
+The easiest way to deploy this app is with the [Vercel Platform](https://vercel.com/new).
+
+## Repository Rules for Staff
+
+### Branching Strategy
+
+- The repository has two primary branches: `main` and `dev`.
+- **Development**: All new features, bug fixes, and changes must be implemented by creating a new branch based off the `dev` branch.
+- **Merging**: Once your implementation is complete and tested, merge your branch back into the `dev` branch.
+- **Deployment**: The `main` branch is strictly reserved for deployment. Merges into `main` are handled only after all features are completed and validated in `dev`.
+
+### Branch Naming Conventions
+
+Please use descriptive branch names that indicate the purpose of the branch. We recommend the following prefixes:
+- `feat/` for new features (e.g., `feat/login-page`)
+- `fix/` for bug fixes (e.g., `fix/header-styling`)
+- `chore/` for maintenance tasks (e.g., `chore/update-dependencies`)
+- `docs/` for documentation changes
+
+### Commit Message Conventions
+
+We follow conventional commits to maintain a readable and organized project history. Each commit message should start with a specific type:
+
+- `feat:` A new feature
+- `fix:` A bug fix
+- `chore:` Changes to the build process or auxiliary tools and libraries (no production code change)
+- `docs:` Documentation only changes
+- `style:` Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc.)
+- `refactor:` A code change that neither fixes a bug nor adds a feature
+- `test:` Adding missing tests or correcting existing tests
+
+Example: `feat: add login form validation`
