@@ -59,12 +59,12 @@ const navConfig: NavSection[] = [
     roles: ['Admin'],
     items: [
       {
-        name: 'Users',
+        name: 'Roles & Users',
         path: '/users',
         icon: Users,
       },
       {
-        name: 'Roles & Permissions',
+        name: 'Permissions',
         path: '/roles',
         icon: Shield,
       },
