@@ -48,7 +48,7 @@ export function Login() {
       login(email, 'Inventory Manager')
       router.push('/dashboard')
     } else {
-      setError('Invalid email or password')
+      setError('The email address or password you entered is incorrect. Please try again or reset your password if you have forgotten it.')
     }
   }
 
