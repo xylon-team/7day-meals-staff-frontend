@@ -1,5 +1,5 @@
 'use client'
 
-import RolesPage from '@/pages/roles/page'
+import { Permissions } from '@/pages/roles/page'
 
-export default RolesPage
+export default Permissions
