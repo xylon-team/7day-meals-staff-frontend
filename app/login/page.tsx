@@ -1,3 +1,3 @@
-import Login from '@/app/pages/login/page'
+import Login from '@/pages/login/page'
 
 export default Login

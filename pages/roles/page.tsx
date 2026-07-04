@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronDown, Shield, Utensils, Save, Check } from 'lucide-react'
 import { useStore, Role, RolePermissions } from '@/app/store'
-import { Badge } from './Badge'
-import { Button } from './Button'
-import { Card, CardContent } from './Card'
+import { Badge } from '@/components/Badge'
+import { Button } from '@/components/Button'
+import { Card, CardContent } from '@/components/Card'
 
 interface PermissionRow {
   code: string

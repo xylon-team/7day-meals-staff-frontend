@@ -1,6 +1,6 @@
 'use client'
 
-import { Layout } from '@/app/components/Layout'
+import { Layout } from '@/components/Layout'
 
 export default function RolesLayout({
   children,

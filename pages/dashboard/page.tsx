@@ -16,9 +16,9 @@ import {
   XOctagon,
   ClipboardList,
 } from 'lucide-react'
-import { Card, CardContent } from './Card'
-import { Badge } from './Badge'
-import { Button } from './Button'
+import { Card, CardContent } from '@/components/Card'
+import { Badge } from '@/components/Badge'
+import { Button } from '@/components/Button'
 import {
   LineChart,
   Line,
@@ -74,9 +74,8 @@ function StatCard({
           <h3 className="text-2xl font-bold text-ink">{value}</h3>
           {trend && (
             <p
-              className={`text-xs mt-2 flex items-center ${
-                trendUp ? 'text-success-fg' : 'text-danger-fg'
-              }`}
+              className={`text-xs mt-2 flex items-center ${trendUp ? 'text-success-fg' : 'text-danger-fg'
+                }`}
             >
               <TrendingUp
                 size={12}

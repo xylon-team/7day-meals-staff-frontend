@@ -28,7 +28,7 @@ import {
   X,
 } from 'lucide-react'
 import { useStore } from '@/app/store'
-import { cn } from '@/app/lib/utils'
+import { cn } from '@/lib/utils'
 
 interface NavItem {
   name: string

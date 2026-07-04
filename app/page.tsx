@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { useStore } from '@/app/store'
-import Login from './pages/login/page'
+import Login from '@/pages/login/page'
 
 export default function Home() {
   const router = useRouter()

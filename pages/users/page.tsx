@@ -15,10 +15,10 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 import { useStore, RoleItem, UserItem } from '@/app/store'
-import { Badge } from './Badge'
-import { Button } from './Button'
-import { Card, CardContent } from './Card'
-import { Input } from './Input'
+import { Badge } from '@/components/Badge'
+import { Button } from '@/components/Button'
+import { Card, CardContent } from '@/components/Card'
+import { Input } from '@/components/Input'
 
 // List of all permissions to compute dynamic counts
 const permissionsList = [
