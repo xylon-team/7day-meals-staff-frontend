@@ -1,6 +1,6 @@
 'use client'
 
-import { Users } from '@/app/components/Users'
+import { Users } from '@/components/Users'
 
 export default function UsersPage() {
   return <Users />

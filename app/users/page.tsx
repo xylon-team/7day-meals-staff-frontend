@@ -1,5 +1,5 @@
 'use client'
 
-import UsersPage from '@/app/pages/users/page'
+import UsersPage from '@/pages/users/page'
 
 export default UsersPage

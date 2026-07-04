@@ -13,9 +13,9 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
-import { Badge } from '@/app/components/Badge'
-import { Button } from '@/app/components/Button'
-import { Input } from '@/app/components/Input'
+import { Badge } from '@/components/Badge'
+import { Button } from '@/components/Button'
+import { Input } from '@/components/Input'
 import { useStore } from '@/app/store'
 
 type Role = 'Admin' | 'Catering Manager' | 'Inventory Manager'
@@ -32,7 +32,7 @@ export function Login() {
     e.preventDefault()
     setError('')
     // Mock authentication based on provided credentials
-    if (email === 'admin@7daymeals.lk' && password === 'Admin@7DM2024') {
+    if (email === 'admin' && password === 'Admin123') {
       login(email, 'Admin')
       router.push('/dashboard')
     } else if (

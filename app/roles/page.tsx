@@ -1,5 +1,5 @@
 'use client'
 
-import RolesPage from '@/app/pages/roles/page'
+import RolesPage from '@/pages/roles/page'
 
 export default RolesPage

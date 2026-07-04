@@ -1,7 +1,7 @@
 'use client'
 
 import React, { Suspense } from 'react'
-import { Permissions } from '@/app/components/Permissions'
+import { Permissions } from '@/components/Permissions'
 
 export default function RolesPage() {
   return (
