@@ -13,6 +13,7 @@ import {
   X,
   ShieldCheck,
   AlertTriangle,
+  ChevronDown,
 } from 'lucide-react'
 import { useStore, RoleItem, UserItem } from '@/app/store'
 import { Badge } from '@/components/Badge'
@@ -58,8 +59,12 @@ export function Users() {
 
   const [isUserModalOpen, setIsUserModalOpen] = useState(false)
   const [userEditing, setUserEditing] = useState<UserItem | null>(null)
-  const [userName, setUserName] = useState('')
+  const [userFirstName, setUserFirstName] = useState('')
+  const [userLastName, setUserLastName] = useState('')
+  const [userPhone, setUserPhone] = useState('+94')
   const [userEmail, setUserEmail] = useState('')
+  const [userPassword, setUserPassword] = useState('')
+  const [userConfirmPassword, setUserConfirmPassword] = useState('')
   const [userRole, setUserRole] = useState('')
   const [userActive, setUserActive] = useState(true)
 
@@ -170,32 +175,49 @@ export function Users() {
   const openUserModal = (user: UserItem | null = null) => {
     if (user) {
       setUserEditing(user)
-      setUserName(user.name)
+      const nameParts = (user.name || '').split(' ')
+      setUserFirstName(nameParts[0] || '')
+      setUserLastName(nameParts.slice(1).join(' ') || '')
       setUserEmail(user.email)
       setUserRole(user.role)
       setUserActive(user.isActive)
+      setUserPhone(user.phone || '+94')
+      setUserPassword('')
+      setUserConfirmPassword('')
     } else {
       setUserEditing(null)
-      setUserName('')
+      setUserFirstName('')
+      setUserLastName('')
       setUserEmail('')
       setUserRole(rolesList[0]?.name || 'Admin')
       setUserActive(true)
+      setUserPhone('+94')
+      setUserPassword('')
+      setUserConfirmPassword('')
     }
     setIsUserModalOpen(true)
   }
 
   const handleUserSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!userName.trim() || !userEmail.trim()) return
+    if (!userFirstName.trim() || !userEmail.trim()) return
+
+    if (userPassword !== userConfirmPassword) {
+      showToast('Passwords do not match.')
+      return
+    }
+
+    const fullName = `${userFirstName.trim()} ${userLastName.trim()}`.trim()
 
     if (userEditing) {
       updateUser(userEditing.id, {
-        name: userName,
+        name: fullName,
         email: userEmail,
         role: userRole,
         isActive: userActive,
+        phone: userPhone,
       })
-      showToast(`User "${userName}" updated successfully!`)
+      showToast(`User "${fullName}" updated successfully!`)
     } else {
       // Check duplicate email
       if (usersList.some((u) => u.email.toLowerCase() === userEmail.toLowerCase())) {
@@ -203,12 +225,13 @@ export function Users() {
         return
       }
       addUser({
-        name: userName,
+        name: fullName,
         email: userEmail,
         role: userRole,
         isActive: userActive,
+        phone: userPhone,
       })
-      showToast(`User "${userName}" created successfully!`)
+      showToast(`User "${fullName}" created successfully!`)
     }
     setIsUserModalOpen(false)
   }
@@ -515,97 +538,170 @@ export function Users() {
       {/* ==================== CREATE / EDIT USER MODAL ==================== */}
       {isUserModalOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <Card className="w-full max-w-md shadow-2xl border border-line bg-card overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-line flex items-center justify-between bg-[#fcfbfa]">
-              <h3 className="text-lg font-bold text-ink">
-                {userEditing ? 'Edit User Details' : 'Create Staff User'}
+          <Card className="w-full max-w-[560px] shadow-2xl border border-line bg-card overflow-hidden animate-in zoom-in-95 duration-200 rounded-xl">
+            <div className="px-6 py-5 border-b border-line flex items-center justify-between bg-card">
+              <h3 className="text-xl font-semibold text-ink">
+                {userEditing ? 'Edit User' : 'Create User'}
               </h3>
               <button
                 onClick={() => setIsUserModalOpen(false)}
-                className="text-ink-soft hover:text-ink cursor-pointer"
+                className="text-ink-soft hover:text-ink cursor-pointer transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
             <form onSubmit={handleUserSubmit}>
-              <CardContent className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-ink mb-1.5">
-                    Full Name
-                  </label>
-                  <Input
-                    type="text"
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    placeholder="e.g. John Doe"
-                    required
-                  />
+              <CardContent className="p-6 space-y-5">
+                {/* First Name & Last Name */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-medium text-[#2d3748] mb-2">
+                      First Name
+                    </label>
+                    <Input
+                      type="text"
+                      value={userFirstName}
+                      onChange={(e) => setUserFirstName(e.target.value)}
+                      placeholder=""
+                      required
+                      className="h-11 border-line bg-card rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#2d3748] mb-2">
+                      Last Name
+                    </label>
+                    <Input
+                      type="text"
+                      value={userLastName}
+                      onChange={(e) => setUserLastName(e.target.value)}
+                      placeholder=""
+                      required
+                      className="h-11 border-line bg-card rounded-lg"
+                    />
+                  </div>
                 </div>
+
+                {/* Phone */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-medium text-[#2d3748] mb-2">
+                      Phone
+                    </label>
+                    <Input
+                      type="text"
+                      value={userPhone}
+                      onChange={(e) => setUserPhone(e.target.value)}
+                      placeholder=""
+                      required
+                      className="h-11 border-line bg-card rounded-lg"
+                    />
+                  </div>
+                  <div></div>
+                </div>
+
+                {/* Email Address */}
                 <div>
-                  <label className="block text-sm font-medium text-ink mb-1.5">
+                  <label className="block text-sm font-medium text-[#2d3748] mb-2">
                     Email Address
                   </label>
                   <Input
                     type="email"
                     value={userEmail}
                     onChange={(e) => setUserEmail(e.target.value)}
-                    placeholder="e.g. john@7daymeals.lk"
+                    placeholder=""
                     required
+                    className="h-11 border-line bg-card rounded-lg"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-ink mb-1.5">
-                    Assign Role
-                  </label>
-                  <select
-                    value={userRole}
-                    onChange={(e) => setUserRole(e.target.value)}
-                    className="w-full h-10 px-3 border border-line rounded-control bg-card text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all cursor-pointer"
-                  >
-                    {rolesList.map((r) => (
-                      <option key={r.name} value={r.name}>
-                        {r.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center justify-between py-2">
+
+                {/* Password & Confirm Password */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
-                    <label className="block text-sm font-medium text-ink">
-                      Active Status
+                    <label className="block text-sm font-medium text-[#2d3748] mb-2">
+                      Password
                     </label>
-                    <span className="text-xs text-ink-soft">
-                      Allow this user to sign in to the portal
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setUserActive(!userActive)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
-                      userActive ? 'bg-[#0a5c60]' : 'bg-line'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        userActive ? 'translate-x-5' : 'translate-x-0'
-                      }`}
+                    <Input
+                      type="password"
+                      value={userPassword}
+                      onChange={(e) => setUserPassword(e.target.value)}
+                      placeholder=""
+                      required={!userEditing}
+                      className="h-11 border-line bg-card rounded-lg"
                     />
-                  </button>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#2d3748] mb-2">
+                      Confirm Password
+                    </label>
+                    <Input
+                      type="password"
+                      value={userConfirmPassword}
+                      onChange={(e) => setUserConfirmPassword(e.target.value)}
+                      placeholder=""
+                      required={!userEditing || !!userPassword}
+                      className="h-11 border-line bg-card rounded-lg"
+                    />
+                  </div>
+                </div>
+
+                {/* Role & Status */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-medium text-[#2d3748] mb-2">
+                      Role
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={userRole}
+                        onChange={(e) => setUserRole(e.target.value)}
+                        className="w-full h-11 pl-3 pr-10 border border-line rounded-lg bg-card text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all cursor-pointer appearance-none"
+                      >
+                        {rolesList.map((r) => (
+                          <option key={r.name} value={r.name}>
+                            {r.name}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-ink-soft">
+                        <ChevronDown size={18} />
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#2d3748] mb-2">
+                      Status
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={userActive ? 'Active' : 'Inactive'}
+                        onChange={(e) => setUserActive(e.target.value === 'Active')}
+                        className="w-full h-11 pl-3 pr-10 border border-line rounded-lg bg-card text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all cursor-pointer appearance-none"
+                      >
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-ink-soft">
+                        <ChevronDown size={18} />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
-              <div className="px-6 py-4 bg-[#fcfbfa] border-t border-line flex justify-end gap-3">
-                <Button
+              <div className="px-6 py-5 border-t border-line flex justify-end items-center gap-4 bg-card">
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
                   onClick={() => setIsUserModalOpen(false)}
-                  className="cursor-pointer"
+                  className="text-[#0a5c60] hover:text-[#074749] font-medium text-sm px-4 py-2 cursor-pointer transition-colors"
                 >
                   Cancel
-                </Button>
-                <Button type="submit" variant="primary" size="sm" className="cursor-pointer">
-                  {userEditing ? 'Save Changes' : 'Create User'}
-                </Button>
+                </button>
+                <button
+                  type="submit"
+                  className="bg-[#0a5c60] hover:bg-[#074749] text-white font-medium text-sm px-5 py-2.5 rounded-lg cursor-pointer transition-colors shadow-sm"
+                >
+                  {userEditing ? 'Save Changes' : 'Save User'}
+                </button>
               </div>
             </form>
           </Card>

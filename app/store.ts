@@ -35,6 +35,7 @@ export interface UserItem {
   email: string
   role: string
   isActive: boolean
+  phone?: string
 }
 
 interface StoreState {
