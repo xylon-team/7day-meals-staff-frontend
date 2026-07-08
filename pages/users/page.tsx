@@ -67,6 +67,7 @@ export function Users() {
   const [userConfirmPassword, setUserConfirmPassword] = useState('')
   const [userRole, setUserRole] = useState('')
   const [userActive, setUserActive] = useState(true)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Delete Confirmation Modals state
   const [deleteRoleConfirm, setDeleteRoleConfirm] = useState<string | null>(null)
@@ -173,6 +174,7 @@ export function Users() {
 
   // Handlers for Users Modals
   const openUserModal = (user: UserItem | null = null) => {
+    setErrors({})
     if (user) {
       setUserEditing(user)
       const nameParts = (user.name || '').split(' ')
@@ -198,18 +200,100 @@ export function Users() {
     setIsUserModalOpen(true)
   }
 
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {}
+
+    // First Name validation
+    if (!userFirstName.trim()) {
+      newErrors.firstName = 'First name is required'
+    } else if (!/^[A-Za-z]+$/.test(userFirstName.trim())) {
+      newErrors.firstName = 'First name must contain only letters'
+    }
+
+    // Last Name validation
+    if (!userLastName.trim()) {
+      newErrors.lastName = 'Last name is required'
+    } else if (!/^[A-Za-z]+$/.test(userLastName.trim())) {
+      newErrors.lastName = 'Last name must contain only letters'
+    }
+
+    // Phone validation
+    const phoneTrimmed = userPhone.trim()
+    if (!phoneTrimmed) {
+      newErrors.phone = 'Phone number is required'
+    } else {
+      // Sri Lankan phone number formats (Accept +94XXXXXXXXX or 0XXXXXXXXX)
+      const phoneRegex = /^(?:\+94|0)?7[0-9]{8}$/
+      if (!phoneRegex.test(phoneTrimmed)) {
+        newErrors.phone = 'Enter a valid Sri Lankan phone number (e.g. +94771234567 or 0771234567)'
+      }
+    }
+
+    // Email validation
+    const emailTrimmed = userEmail.trim()
+    if (!emailTrimmed) {
+      newErrors.email = 'Email address is required'
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(emailTrimmed)) {
+        newErrors.email = 'Please enter a valid email address'
+      }
+    }
+
+    // Password validation (only required for new user, or if password field is filled during edit)
+    if (!userEditing) {
+      if (!userPassword) {
+        newErrors.password = 'Password is required'
+      } else {
+        if (userPassword.length < 8) {
+          newErrors.password = 'Password must be at least 8 characters long'
+        } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/.test(userPassword)) {
+          newErrors.password = 'Password must contain at least one uppercase, lowercase, number, and special character'
+        }
+      }
+
+      if (!userConfirmPassword) {
+        newErrors.confirmPassword = 'Confirm password is required'
+      } else if (userPassword !== userConfirmPassword) {
+        newErrors.confirmPassword = 'Passwords do not match'
+      }
+    } else {
+      // For editing, password is optional, but if entered, it must meet constraints
+      if (userPassword) {
+        if (userPassword.length < 8) {
+          newErrors.password = 'Password must be at least 8 characters long'
+        } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/.test(userPassword)) {
+          newErrors.password = 'Password must contain at least one uppercase, lowercase, number, and special character'
+        }
+
+        if (!userConfirmPassword) {
+          newErrors.confirmPassword = 'Confirm password is required'
+        } else if (userPassword !== userConfirmPassword) {
+          newErrors.confirmPassword = 'Passwords do not match'
+        }
+      }
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handleUserSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!userFirstName.trim() || !userEmail.trim()) return
-
-    if (userPassword !== userConfirmPassword) {
-      showToast('Passwords do not match.')
+    if (!validateForm()) {
+      showToast('Please fix the validation errors in the form.')
       return
     }
 
     const fullName = `${userFirstName.trim()} ${userLastName.trim()}`.trim()
 
     if (userEditing) {
+      // Check duplicate email
+      if (usersList.some((u) => u.email.toLowerCase() === userEmail.toLowerCase() && u.id !== userEditing.id)) {
+        setErrors(prev => ({ ...prev, email: 'User with this email already exists.' }))
+        showToast('User with this email already exists.')
+        return
+      }
       updateUser(userEditing.id, {
         name: fullName,
         email: userEmail,
@@ -221,6 +305,7 @@ export function Users() {
     } else {
       // Check duplicate email
       if (usersList.some((u) => u.email.toLowerCase() === userEmail.toLowerCase())) {
+        setErrors(prev => ({ ...prev, email: 'User with this email already exists.' }))
         showToast('User with this email already exists.')
         return
       }
@@ -550,7 +635,7 @@ export function Users() {
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleUserSubmit}>
+            <form onSubmit={handleUserSubmit} noValidate>
               <CardContent className="p-6 space-y-5">
                 {/* First Name & Last Name */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -561,9 +646,14 @@ export function Users() {
                     <Input
                       type="text"
                       value={userFirstName}
-                      onChange={(e) => setUserFirstName(e.target.value)}
-                      placeholder=""
-                      required
+                      onChange={(e) => {
+                        setUserFirstName(e.target.value)
+                        if (errors.firstName) {
+                          setErrors((prev) => ({ ...prev, firstName: '' }))
+                        }
+                      }}
+                      error={errors.firstName}
+                      placeholder="e.g. John"
                       className="h-11 border-line bg-card rounded-lg"
                     />
                   </div>
@@ -574,9 +664,14 @@ export function Users() {
                     <Input
                       type="text"
                       value={userLastName}
-                      onChange={(e) => setUserLastName(e.target.value)}
-                      placeholder=""
-                      required
+                      onChange={(e) => {
+                        setUserLastName(e.target.value)
+                        if (errors.lastName) {
+                          setErrors((prev) => ({ ...prev, lastName: '' }))
+                        }
+                      }}
+                      error={errors.lastName}
+                      placeholder="e.g. Doe"
                       className="h-11 border-line bg-card rounded-lg"
                     />
                   </div>
@@ -591,9 +686,14 @@ export function Users() {
                     <Input
                       type="text"
                       value={userPhone}
-                      onChange={(e) => setUserPhone(e.target.value)}
-                      placeholder=""
-                      required
+                      onChange={(e) => {
+                        setUserPhone(e.target.value)
+                        if (errors.phone) {
+                          setErrors((prev) => ({ ...prev, phone: '' }))
+                        }
+                      }}
+                      error={errors.phone}
+                      placeholder="e.g. +94771234567"
                       className="h-11 border-line bg-card rounded-lg"
                     />
                   </div>
@@ -608,9 +708,14 @@ export function Users() {
                   <Input
                     type="email"
                     value={userEmail}
-                    onChange={(e) => setUserEmail(e.target.value)}
-                    placeholder=""
-                    required
+                    onChange={(e) => {
+                      setUserEmail(e.target.value)
+                      if (errors.email) {
+                        setErrors((prev) => ({ ...prev, email: '' }))
+                      }
+                    }}
+                    error={errors.email}
+                    placeholder="e.g. john.doe@example.com"
                     className="h-11 border-line bg-card rounded-lg"
                   />
                 </div>
@@ -619,14 +724,19 @@ export function Users() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-sm font-medium text-[#2d3748] mb-2">
-                      Password
+                      Password {userEditing && <span className="text-xs text-ink-soft">(Optional)</span>}
                     </label>
                     <Input
                       type="password"
                       value={userPassword}
-                      onChange={(e) => setUserPassword(e.target.value)}
-                      placeholder=""
-                      required={!userEditing}
+                      onChange={(e) => {
+                        setUserPassword(e.target.value)
+                        if (errors.password) {
+                          setErrors((prev) => ({ ...prev, password: '' }))
+                        }
+                      }}
+                      error={errors.password}
+                      placeholder={userEditing ? "Leave blank to keep current" : "••••••••"}
                       className="h-11 border-line bg-card rounded-lg"
                     />
                   </div>
@@ -637,9 +747,14 @@ export function Users() {
                     <Input
                       type="password"
                       value={userConfirmPassword}
-                      onChange={(e) => setUserConfirmPassword(e.target.value)}
-                      placeholder=""
-                      required={!userEditing || !!userPassword}
+                      onChange={(e) => {
+                        setUserConfirmPassword(e.target.value)
+                        if (errors.confirmPassword) {
+                          setErrors((prev) => ({ ...prev, confirmPassword: '' }))
+                        }
+                      }}
+                      error={errors.confirmPassword}
+                      placeholder="••••••••"
                       className="h-11 border-line bg-card rounded-lg"
                     />
                   </div>
@@ -791,3 +906,5 @@ export function Users() {
     </div>
   )
 }
+
+export default Users

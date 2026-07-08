@@ -174,7 +174,7 @@ export function Permissions() {
 
   // Set selectedRole from query param if present
   useEffect(() => {
-    const roleParam = searchParams.get('role')
+    const roleParam = searchParams?.get('role')
     if (roleParam && permissions[roleParam]) {
       setSelectedRole(roleParam)
     }
@@ -584,3 +584,6 @@ export function Permissions() {
     </div>
   )
 }
+
+export default Permissions
+
