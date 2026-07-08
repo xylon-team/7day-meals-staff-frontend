@@ -31,7 +31,10 @@ export function AdminLogin() {
     e.preventDefault()
     setError('')
     // Mock authentication based on provided credentials
-    if (email === 'admin@7daymeals.lk' && password === 'admin123') {
+    if (email === 'admin@7daymeals.lk' && password === 'Admin@7DM2024') {
+      login(email, 'Admin')
+      router.push('/dashboard')
+    } else if (email === 'admin' && password === 'Admin123') {
       login(email, 'Admin')
       router.push('/dashboard')
     } else {
@@ -41,7 +44,7 @@ export function AdminLogin() {
 
   const fillCredentials = () => {
     setEmail('admin@7daymeals.lk')
-    setPassword('admin123')
+    setPassword('Admin@7DM2024')
   }
 
   return (
