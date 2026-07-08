@@ -27,18 +27,38 @@ export function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
 
-  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
-    // Mock authentication based on provided credentials
-    if (email === 'admin@7daymeals.lk' && password === 'Admin@7DM2024') {
-      login(email, 'Admin')
-      router.push('/dashboard')
-    } else if (email === 'admin' && password === 'Admin123') {
-      login(email, 'Admin')
-      router.push('/dashboard')
-    } else {
-      setError('Access Denied. Invalid administrator credentials.')
+    setIsLoading(true)
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Access Denied. Invalid administrator credentials.')
+      }
+
+      const data = await response.json()
+
+      if (data.access_token) {
+        login(email, 'Admin', data.access_token)
+        router.push('/dashboard')
+      } else {
+        throw new Error('Access Denied. Invalid administrator credentials.')
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during authentication.')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -152,8 +172,8 @@ export function AdminLogin() {
               </div>
             )}
 
-            <Button type="submit" className="w-full" size="lg">
-              Authenticate
+            <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+              {isLoading ? 'Authenticating...' : 'Authenticate'}
             </Button>
           </form>
 

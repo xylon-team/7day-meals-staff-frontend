@@ -7,6 +7,7 @@ export interface User {
   email: string
   name: string
   role: Role
+  accessToken?: string
 }
 
 export interface PermissionActions {
@@ -40,7 +41,7 @@ export interface UserItem {
 
 interface StoreState {
   user: User | null
-  login: (email: string, role: string) => void
+  login: (email: string, role: string, accessToken?: string) => void
   logout: () => void
   permissions: PermissionsMapping
   updateRolePermissions: (role: Role, permissions: RolePermissions) => void
@@ -167,7 +168,7 @@ export const useStore = create<StoreState>()(
       permissions: defaultPermissions,
       rolesList: defaultRoles,
       usersList: defaultUsers,
-      login: (email: string, role: string) =>
+      login: (email: string, role: string, accessToken?: string) =>
         set({
           user: {
             email,
@@ -178,6 +179,7 @@ export const useStore = create<StoreState>()(
                 ? 'Catering Manager'
                 : 'Inventory Manager',
             role: role as Role,
+            accessToken,
           },
         }),
       logout: () => set({ user: null }),
