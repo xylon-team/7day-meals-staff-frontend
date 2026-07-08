@@ -34,9 +34,6 @@ export function AdminLogin() {
     if (email === 'admin@7daymeals.lk' && password === 'admin123') {
       login(email, 'Admin')
       router.push('/dashboard')
-    } else if (email === 'admin' && password === 'Admin123') {
-      login(email, 'Admin')
-      router.push('/dashboard')
     } else {
       setError('Access Denied. Invalid administrator credentials.')
     }
@@ -44,7 +41,7 @@ export function AdminLogin() {
 
   const fillCredentials = () => {
     setEmail('admin@7daymeals.lk')
-    setPassword('Admin@7DM2024')
+    setPassword('admin123')
   }
 
   return (
