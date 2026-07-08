@@ -18,7 +18,7 @@ import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
 import { useStore } from '@/app/store'
 
-type Role = 'Admin' | 'Catering Manager' | 'Inventory Manager'
+type Role = 'Catering Manager' | 'Inventory Manager'
 
 export function Login() {
   const router = useRouter()
@@ -32,10 +32,7 @@ export function Login() {
     e.preventDefault()
     setError('')
     // Mock authentication based on provided credentials
-    if (email === 'admin' && password === 'Admin123') {
-      login(email, 'Admin')
-      router.push('/dashboard')
-    } else if (
+    if (
       email === 'catering@7daymeals.lk' &&
       password === 'Catering@7DM2024'
     ) {
@@ -53,10 +50,7 @@ export function Login() {
   }
 
   const fillCredentials = (role: Role) => {
-    if (role === 'Admin') {
-      setEmail('admin@7daymeals.lk')
-      setPassword('Admin@7DM2024')
-    } else if (role === 'Catering Manager') {
+    if (role === 'Catering Manager') {
       setEmail('catering@7daymeals.lk')
       setPassword('Catering@7DM2024')
     } else if (role === 'Inventory Manager') {
@@ -185,6 +179,16 @@ export function Login() {
             <Button type="submit" className="w-full" size="lg">
               Sign In
             </Button>
+            
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => router.push('/admin-login')}
+                className="text-sm font-medium text-primary hover:text-primary-dark transition-colors"
+              >
+                Login as Administrator &rarr;
+              </button>
+            </div>
           </form>
 
           <div className="mt-8 pt-6 border-t border-line">
@@ -192,12 +196,6 @@ export function Login() {
               Demo Accounts
             </p>
             <div className="flex flex-wrap justify-center gap-2">
-              <button
-                onClick={() => fillCredentials('Admin')}
-                className="hover:opacity-80 transition-opacity"
-              >
-                <Badge variant="info">Admin</Badge>
-              </button>
               <button
                 onClick={() => fillCredentials('Catering Manager')}
                 className="hover:opacity-80 transition-opacity"
