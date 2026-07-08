@@ -22,7 +22,7 @@ import { useStore } from '@/app/store'
 export function AdminLogin() {
   const router = useRouter()
   const { login } = useStore()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -40,7 +40,7 @@ export function AdminLogin() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ admin_username: username, admin_password: password }),
       })
 
       if (!response.ok) {
@@ -50,7 +50,7 @@ export function AdminLogin() {
       const data = await response.json()
 
       if (data.access_token) {
-        login(email, 'Admin', data.access_token)
+        login(username, 'Admin', data.access_token)
         router.push('/dashboard')
       } else {
         throw new Error('Access Denied. Invalid administrator credentials.')
@@ -63,7 +63,7 @@ export function AdminLogin() {
   }
 
   const fillCredentials = () => {
-    setEmail('admin@7daymeals.lk')
+    setUsername('admin')
     setPassword('Admin@7DM2024')
   }
 
@@ -129,13 +129,13 @@ export function AdminLogin() {
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-ink mb-1.5">
-                Admin Email
+                Admin Username
               </label>
               <Input
-                type="email"
-                placeholder="admin@7daymeals.lk"
-                value={email}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+                type="text"
+                placeholder="admin"
+                value={username}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
                 icon={<Mail size={18} />}
                 required
               />
