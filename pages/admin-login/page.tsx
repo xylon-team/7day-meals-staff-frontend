@@ -18,6 +18,7 @@ import { Badge } from '@/components/Badge'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
 import { useStore } from '@/app/store'
+import { adminLogin } from '@/lib/api/login'
 
 export function AdminLogin() {
   const router = useRouter()
@@ -35,26 +36,13 @@ export function AdminLogin() {
     setIsLoading(true)
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ admin_username: username, admin_password: password }),
+      const data = await adminLogin({
+        admin_username: username,
+        admin_password: password
       })
 
-      if (!response.ok) {
-        throw new Error('Access Denied. Invalid administrator credentials.')
-      }
-
-      const data = await response.json()
-
-      if (data.access_token) {
-        login(username, 'Admin', data.access_token)
-        router.push('/dashboard')
-      } else {
-        throw new Error('Access Denied. Invalid administrator credentials.')
-      }
+      login(username, 'Admin', data.access_token)
+      router.push('/dashboard')
     } catch (err: any) {
       setError(err.message || 'An error occurred during authentication.')
     } finally {
