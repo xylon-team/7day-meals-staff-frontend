@@ -16,13 +16,13 @@ import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/Badge'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
-import { useStore } from '@/app/store'
+import { useUserStore } from '@/store/user-store'
 
 type Role = 'Catering Manager' | 'Inventory Manager'
 
 export function Login() {
   const router = useRouter()
-  const { login } = useStore()
+  const { login } = useUserStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)

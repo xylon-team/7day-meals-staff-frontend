@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { useStore } from '@/app/store'
+import { useUserStore } from '@/store/user-store'
 import {
   Users,
   UserSquare2,
@@ -456,7 +456,7 @@ function InventoryDashboard() {
 }
 
 export function Dashboard() {
-  const { user } = useStore()
+  const { user } = useUserStore()
 
   if (!user) return null
 

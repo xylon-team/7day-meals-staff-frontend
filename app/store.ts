@@ -1,14 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-
-export type Role = string
-
-export interface User {
-  username: string
-  name: string
-  role: Role
-  accessToken?: string
-}
+import { Role } from '@/store/user-store'
 
 export interface PermissionActions {
   add?: boolean
@@ -40,9 +32,7 @@ export interface UserItem {
 }
 
 interface StoreState {
-  user: User | null
-  login: (username: string, role: string, accessToken?: string) => void
-  logout: () => void
+
   permissions: PermissionsMapping
   updateRolePermissions: (role: Role, permissions: RolePermissions) => void
   rolesList: RoleItem[]
@@ -164,25 +154,9 @@ const defaultUsers: UserItem[] = [
 export const useStore = create<StoreState>()(
   persist(
     (set) => ({
-      user: null,
       permissions: defaultPermissions,
       rolesList: defaultRoles,
       usersList: defaultUsers,
-      login: (username: string, role: string, accessToken?: string) =>
-        set({
-          user: {
-            username,
-            name:
-              role === 'Admin'
-                ? 'Admin User'
-                : role === 'Catering Manager'
-                ? 'Catering Manager'
-                : 'Inventory Manager',
-            role: role as Role,
-            accessToken,
-          },
-        }),
-      logout: () => set({ user: null }),
       updateRolePermissions: (role: Role, permissions: RolePermissions) =>
         set((state) => ({
           permissions: {

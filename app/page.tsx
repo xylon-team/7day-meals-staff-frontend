@@ -2,12 +2,12 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { useStore } from '@/app/store'
+import { useUserStore } from '@/store/user-store'
 import Login from '@/pages/login/page'
 
 export default function Home() {
   const router = useRouter()
-  const { user } = useStore()
+  const { user } = useUserStore()
 
   useEffect(() => {
     // If user is logged in, redirect to dashboard

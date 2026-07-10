@@ -27,7 +27,7 @@ import {
   User as UserIcon,
   X,
 } from 'lucide-react'
-import { useStore } from '@/app/store'
+import { useUserStore } from '@/store/user-store'
 import { cn } from '@/lib/utils'
 
 interface NavItem {
@@ -157,7 +157,7 @@ const navConfig: NavSection[] = [
 ]
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useStore()
+  const { user, logout } = useUserStore()
   const router = useRouter()
   const pathname = usePathname()
   const [isSidebarOpen, setSidebarOpen] = useState(true)
