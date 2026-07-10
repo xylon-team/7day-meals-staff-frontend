@@ -135,12 +135,6 @@ export function Users() {
     if (!roleName.trim()) return
 
     if (roleEditing) {
-      // System roles cannot be renamed or modified
-      if (['Admin', 'Catering Manager', 'Inventory Manager'].includes(roleEditing.name)) {
-        showToast('System roles cannot be modified.')
-        setIsRoleModalOpen(false)
-        return
-      }
       updateRole(roleEditing.name, {
         name: roleName,
         description: roleDescription,
@@ -162,11 +156,6 @@ export function Users() {
   }
 
   const handleDeleteRole = (name: string) => {
-    if (['Admin', 'Catering Manager', 'Inventory Manager'].includes(name)) {
-      showToast('System roles cannot be deleted.')
-      setDeleteRoleConfirm(null)
-      return
-    }
     deleteRole(name)
     showToast(`Role "${name}" deleted.`)
     setDeleteRoleConfirm(null)
@@ -386,7 +375,6 @@ export function Users() {
               </thead>
               <tbody className="divide-y divide-line bg-card">
                 {rolesList.map((role) => {
-                  const isSystemRole = ['Admin', 'Catering Manager', 'Inventory Manager'].includes(role.name)
                   return (
                     <tr key={role.name} className="hover:bg-canvas/30 transition-colors">
                       {/* Role Badge */}
@@ -418,21 +406,15 @@ export function Users() {
                           </button>
                           <button
                             onClick={() => openRoleModal(role)}
-                            disabled={isSystemRole}
-                            className={`transition-colors cursor-pointer ${
-                              isSystemRole ? 'text-ink-soft/30 cursor-not-allowed' : 'text-ink-soft hover:text-ink'
-                            }`}
-                            title={isSystemRole ? 'System roles cannot be edited' : 'Edit Role'}
+                            className="text-ink-soft hover:text-ink transition-colors cursor-pointer"
+                            title="Edit Role"
                           >
                             <Edit2 size={16} />
                           </button>
                           <button
                             onClick={() => setDeleteRoleConfirm(role.name)}
-                            disabled={isSystemRole}
-                            className={`transition-colors cursor-pointer ${
-                              isSystemRole ? 'text-ink-soft/30 cursor-not-allowed' : 'text-danger-fg hover:text-danger-fg/80'
-                            }`}
-                            title={isSystemRole ? 'System roles cannot be deleted' : 'Delete Role'}
+                            className="text-danger-fg hover:text-danger-fg/80 transition-colors cursor-pointer"
+                            title="Delete Role"
                           >
                             <Trash2 size={16} />
                           </button>
