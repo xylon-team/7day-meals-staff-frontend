@@ -1,4 +1,5 @@
 import { Role, CreateRoleDto, UpdateRoleDto } from '../types/roles';
+import { useUserStore } from '@/store/user-store';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -7,7 +8,7 @@ const getAuthHeaders = (): Record<string, string> => {
     'Content-Type': 'application/json',
   };
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('access_token');
+    const token = useUserStore.getState().user?.accessToken;
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }

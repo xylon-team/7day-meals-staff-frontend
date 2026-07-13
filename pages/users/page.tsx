@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Users as UsersIcon,
@@ -15,35 +15,41 @@ import {
   AlertTriangle,
   ChevronDown,
 } from 'lucide-react'
-import { useStore, RoleItem, UserItem } from '@/app/store'
+import { useStore, UserItem } from '@/app/store'
+import { getRoles, createRole, updateRole as updateRoleApi, deleteRole as deleteRoleApi } from '@/lib/api/roles'
+import { Role } from '@/lib/types/roles'
 import { Badge } from '@/components/Badge'
 import { Button } from '@/components/Button'
 import { Card, CardContent } from '@/components/Card'
 import { Input } from '@/components/Input'
 
-// List of all permissions to compute dynamic counts
-const permissionsList = [
-  'meal_management', 'view_meals', 'create_meals', 'edit_meals', 'delete_meals',
-  'order_management', 'view_orders', 'update_order_status', 'cancel_order',
-  'inventory_management', 'view_inventory', 'add_inventory',
-  'staff_management', 'view_staff', 'manage_salary',
-  'view_reports', 'export_reports',
-  'view_logs', 'manage_settings', 'manage_users'
-]
+
 
 export function Users() {
   const router = useRouter()
   const {
-    rolesList,
     usersList,
     permissions,
-    addRole,
-    updateRole,
-    deleteRole,
     addUser,
     updateUser,
     deleteUser,
   } = useStore()
+
+  const [apiRolesList, setApiRolesList] = useState<Role[]>([])
+
+  useEffect(() => {
+    fetchRoles()
+  }, [])
+
+  const fetchRoles = async () => {
+    try {
+      const roles = await getRoles(true)
+      setApiRolesList(roles)
+    } catch (error) {
+      console.error(error)
+      showToast('Failed to fetch roles')
+    }
+  }
 
   // Search input query
   const [searchQuery, setSearchQuery] = useState('')
@@ -53,7 +59,7 @@ export function Users() {
 
   // Modals state
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false)
-  const [roleEditing, setRoleEditing] = useState<RoleItem | null>(null)
+  const [roleEditing, setRoleEditing] = useState<Role | null>(null)
   const [roleName, setRoleName] = useState('')
   const [roleDescription, setRoleDescription] = useState('')
 
@@ -70,7 +76,7 @@ export function Users() {
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Delete Confirmation Modals state
-  const [deleteRoleConfirm, setDeleteRoleConfirm] = useState<string | null>(null)
+  const [deleteRoleConfirm, setDeleteRoleConfirm] = useState<{id: number, name: string} | null>(null)
   const [deleteUserConfirm, setDeleteUserConfirm] = useState<string | null>(null)
 
   const showToast = (message: string) => {
@@ -80,27 +86,7 @@ export function Users() {
     }, 3000)
   }
 
-  // Calculate dynamic count of checkboxes checked for a role
-  const getPermissionsCount = (roleName: string) => {
-    const rolePerms = permissions[roleName] || {}
-    let count = 0
-    permissionsList.forEach((code) => {
-      const actions = rolePerms[code] || {}
-      if (actions.add) count++
-      if (actions.change) count++
-      if (actions.delete) count++
-      if (actions.view) count++
-    })
 
-    // To align closely with the mockup numbers initially:
-    // Admin mock = 45, Catering Mgr mock = 24, Inventory Mgr mock = 18
-    // If they edit them, we show the live updated counts!
-    if (roleName === 'Admin' && count === 80) return 45
-    if (roleName === 'Catering Manager' && count === 27) return 24
-    if (roleName === 'Inventory Manager' && count === 19) return 18
-
-    return count
-  }
 
   const getRoleBadgeVariant = (roleName: string) => {
     if (roleName === 'Admin') return 'info'
@@ -117,10 +103,10 @@ export function Users() {
   )
 
   // Handlers for Roles Modals
-  const openRoleModal = (role: RoleItem | null = null) => {
+  const openRoleModal = (role: Role | null = null) => {
     if (role) {
       setRoleEditing(role)
-      setRoleName(role.name)
+      setRoleName(role.role)
       setRoleDescription(role.description)
     } else {
       setRoleEditing(null)
@@ -130,35 +116,45 @@ export function Users() {
     setIsRoleModalOpen(true)
   }
 
-  const handleRoleSubmit = (e: React.FormEvent) => {
+  const handleRoleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!roleName.trim()) return
 
-    if (roleEditing) {
-      updateRole(roleEditing.name, {
-        name: roleName,
-        description: roleDescription,
-      })
-      showToast(`Role "${roleName}" updated successfully!`)
-    } else {
-      // Check for duplicate names
-      if (rolesList.some((r) => r.name.toLowerCase() === roleName.toLowerCase())) {
-        showToast('Role with this name already exists.')
-        return
+    try {
+      if (roleEditing) {
+        await updateRoleApi(roleEditing.id, {
+          role: roleName,
+          description: roleDescription,
+        })
+        showToast(`Role "${roleName}" updated successfully!`)
+      } else {
+        // Check for duplicate names
+        if (apiRolesList.some((r) => r.role.toLowerCase() === roleName.toLowerCase())) {
+          showToast('Role with this name already exists.')
+          return
+        }
+        await createRole({
+          role: roleName,
+          description: roleDescription,
+        })
+        showToast(`Role "${roleName}" created successfully!`)
       }
-      addRole({
-        name: roleName,
-        description: roleDescription,
-      })
-      showToast(`Role "${roleName}" created successfully!`)
+      await fetchRoles()
+      setIsRoleModalOpen(false)
+    } catch (error: any) {
+      showToast(error.message || 'Failed to save role')
     }
-    setIsRoleModalOpen(false)
   }
 
-  const handleDeleteRole = (name: string) => {
-    deleteRole(name)
-    showToast(`Role "${name}" deleted.`)
-    setDeleteRoleConfirm(null)
+  const handleDeleteRole = async (id: number, name: string) => {
+    try {
+      await deleteRoleApi(id)
+      showToast(`Role "${name}" deleted.`)
+      setDeleteRoleConfirm(null)
+      await fetchRoles()
+    } catch (error: any) {
+      showToast(error.message || 'Failed to delete role')
+    }
   }
 
   // Handlers for Users Modals
@@ -180,7 +176,7 @@ export function Users() {
       setUserFirstName('')
       setUserLastName('')
       setUserEmail('')
-      setUserRole(rolesList[0]?.name || 'Admin')
+      setUserRole(apiRolesList[0]?.role || 'Admin')
       setUserActive(true)
       setUserPhone('+94')
       setUserPassword('')
@@ -374,13 +370,13 @@ export function Users() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line bg-card">
-                {rolesList.map((role) => {
+                {apiRolesList.map((role) => {
                   return (
-                    <tr key={role.name} className="hover:bg-canvas/30 transition-colors">
+                    <tr key={role.id} className="hover:bg-canvas/30 transition-colors">
                       {/* Role Badge */}
                       <td className="px-6 py-5 whitespace-nowrap">
-                        <Badge variant={getRoleBadgeVariant(role.name)} className="px-3 py-1 text-sm font-semibold rounded-md">
-                          {role.name}
+                        <Badge variant={getRoleBadgeVariant(role.role)} className="px-3 py-1 text-sm font-semibold rounded-md">
+                          {role.role}
                         </Badge>
                       </td>
 
@@ -391,14 +387,14 @@ export function Users() {
 
                       {/* Permissions Count */}
                       <td className="px-6 py-5 font-bold text-ink text-sm">
-                        {getPermissionsCount(role.name)}
+                        {role.permissions?.length || 0}
                       </td>
 
                       {/* Actions */}
                       <td className="px-6 py-5 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-3.5">
                           <button
-                            onClick={() => router.push(`/roles?role=${encodeURIComponent(role.name)}`)}
+                            onClick={() => router.push(`/roles?role=${encodeURIComponent(role.role)}`)}
                             className="text-ink-soft hover:text-primary transition-colors cursor-pointer"
                             title="Manage Permissions"
                           >
@@ -412,7 +408,7 @@ export function Users() {
                             <Edit2 size={16} />
                           </button>
                           <button
-                            onClick={() => setDeleteRoleConfirm(role.name)}
+                            onClick={() => setDeleteRoleConfirm({id: role.id, name: role.role})}
                             className="text-danger-fg hover:text-danger-fg/80 transition-colors cursor-pointer"
                             title="Delete Role"
                           >
@@ -754,9 +750,9 @@ export function Users() {
                         onChange={(e) => setUserRole(e.target.value)}
                         className="w-full h-11 pl-3 pr-10 border border-line rounded-lg bg-card text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all cursor-pointer appearance-none"
                       >
-                        {rolesList.map((r) => (
-                          <option key={r.name} value={r.name}>
-                            {r.name}
+                        {apiRolesList.map((r) => (
+                          <option key={r.id} value={r.role}>
+                            {r.role}
                           </option>
                         ))}
                       </select>
@@ -816,7 +812,7 @@ export function Users() {
               <div>
                 <h4 className="text-lg font-bold text-ink">Delete Role?</h4>
                 <p className="text-sm text-ink-soft mt-1">
-                  Are you sure you want to delete the role "{deleteRoleConfirm}"? This will also clear its permission settings.
+                  Are you sure you want to delete the role "{deleteRoleConfirm.name}"? This will also clear its permission settings.
                 </p>
               </div>
             </div>
@@ -834,7 +830,7 @@ export function Users() {
                 type="button"
                 variant="danger"
                 size="sm"
-                onClick={() => handleDeleteRole(deleteRoleConfirm)}
+                onClick={() => handleDeleteRole(deleteRoleConfirm.id, deleteRoleConfirm.name)}
                 className="cursor-pointer"
               >
                 Delete
