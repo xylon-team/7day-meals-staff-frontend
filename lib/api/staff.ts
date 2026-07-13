@@ -64,10 +64,22 @@ export const getStaffById = async (id: number | string): Promise<Staff> => {
 };
 
 export const createStaff = async (data: CreateStaffDto): Promise<Staff> => {
+  const { email, staff_password, ...rest } = data;
+  
+  const payload = {
+    ...rest,
+    credential: {
+      create: {
+        email,
+        staff_password,
+      }
+    }
+  };
+
   const response = await fetch(`${API_URL}/staff`, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
@@ -80,10 +92,23 @@ export const createStaff = async (data: CreateStaffDto): Promise<Staff> => {
 };
 
 export const updateStaff = async (id: number | string, data: UpdateStaffDto): Promise<Staff> => {
+  const { email, staff_password, ...rest } = data;
+  
+  const payload: any = { ...rest };
+  
+  if (email !== undefined || staff_password !== undefined) {
+    payload.credential = {
+      update: {
+        ...(email !== undefined && { email }),
+        ...(staff_password !== undefined && { staff_password }),
+      }
+    };
+  }
+
   const response = await fetch(`${API_URL}/staff/${id}`, {
     method: 'PATCH',
     headers: getAuthHeaders(),
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
