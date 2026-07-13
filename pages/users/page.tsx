@@ -18,6 +18,8 @@ import {
 import { useStore, UserItem } from '@/app/store'
 import { getRoles, createRole, updateRole as updateRoleApi, deleteRole as deleteRoleApi } from '@/lib/api/roles'
 import { Role } from '@/lib/types/roles'
+import { getStaff, createStaff, updateStaff as updateStaffApi, deleteStaff as deleteStaffApi } from '@/lib/api/staff'
+import { Staff, StaffStatus } from '@/lib/types/staff'
 import { Badge } from '@/components/Badge'
 import { Button } from '@/components/Button'
 import { Card, CardContent } from '@/components/Card'
@@ -27,19 +29,23 @@ import { Input } from '@/components/Input'
 
 export function Users() {
   const router = useRouter()
-  const {
-    usersList,
-    permissions,
-    addUser,
-    updateUser,
-    deleteUser,
-  } = useStore()
-
   const [apiRolesList, setApiRolesList] = useState<Role[]>([])
+  const [apiStaffList, setApiStaffList] = useState<Staff[]>([])
 
   useEffect(() => {
     fetchRoles()
+    fetchStaff()
   }, [])
+
+  const fetchStaff = async () => {
+    try {
+      const staff = await getStaff()
+      setApiStaffList(staff)
+    } catch (error) {
+      console.error(error)
+      showToast('Failed to fetch staff users')
+    }
+  }
 
   const fetchRoles = async () => {
     try {
@@ -64,7 +70,7 @@ export function Users() {
   const [roleDescription, setRoleDescription] = useState('')
 
   const [isUserModalOpen, setIsUserModalOpen] = useState(false)
-  const [userEditing, setUserEditing] = useState<UserItem | null>(null)
+  const [userEditing, setUserEditing] = useState<Staff | null>(null)
   const [userFirstName, setUserFirstName] = useState('')
   const [userLastName, setUserLastName] = useState('')
   const [userPhone, setUserPhone] = useState('+94')
@@ -72,12 +78,12 @@ export function Users() {
   const [userPassword, setUserPassword] = useState('')
   const [userConfirmPassword, setUserConfirmPassword] = useState('')
   const [userRole, setUserRole] = useState('')
-  const [userActive, setUserActive] = useState(true)
+  const [userActive, setUserActive] = useState<StaffStatus>(StaffStatus.ACTIVE)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Delete Confirmation Modals state
   const [deleteRoleConfirm, setDeleteRoleConfirm] = useState<{id: number, name: string} | null>(null)
-  const [deleteUserConfirm, setDeleteUserConfirm] = useState<string | null>(null)
+  const [deleteUserConfirm, setDeleteUserConfirm] = useState<number | null>(null)
 
   const showToast = (message: string) => {
     setToastMessage(message)
@@ -96,10 +102,10 @@ export function Users() {
   }
 
   // Filter users by search query
-  const filteredUsers = usersList.filter(
+  const filteredUsers = apiStaffList.filter(
     (u) =>
-      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase())
+      `${u.fname} ${u.lname}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (u.email || '').toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   // Handlers for Roles Modals
@@ -158,17 +164,16 @@ export function Users() {
   }
 
   // Handlers for Users Modals
-  const openUserModal = (user: UserItem | null = null) => {
+  const openUserModal = (user: Staff | null = null) => {
     setErrors({})
     if (user) {
       setUserEditing(user)
-      const nameParts = (user.name || '').split(' ')
-      setUserFirstName(nameParts[0] || '')
-      setUserLastName(nameParts.slice(1).join(' ') || '')
-      setUserEmail(user.email)
-      setUserRole(user.role)
-      setUserActive(user.isActive)
-      setUserPhone(user.phone || '+94')
+      setUserFirstName(user.fname)
+      setUserLastName(user.lname)
+      setUserEmail(user.email || '')
+      setUserRole(user.role || apiRolesList[0]?.role || 'Admin')
+      setUserActive(user.status)
+      setUserPhone(user.phone_number || '+94')
       setUserPassword('')
       setUserConfirmPassword('')
     } else {
@@ -177,7 +182,7 @@ export function Users() {
       setUserLastName('')
       setUserEmail('')
       setUserRole(apiRolesList[0]?.role || 'Admin')
-      setUserActive(true)
+      setUserActive(StaffStatus.ACTIVE)
       setUserPhone('+94')
       setUserPassword('')
       setUserConfirmPassword('')
@@ -263,7 +268,7 @@ export function Users() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleUserSubmit = (e: React.FormEvent) => {
+  const handleUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validateForm()) {
       showToast('Please fix the validation errors in the form.')
@@ -272,49 +277,55 @@ export function Users() {
 
     const fullName = `${userFirstName.trim()} ${userLastName.trim()}`.trim()
 
-    if (userEditing) {
-      // Check duplicate email
-      if (usersList.some((u) => u.email.toLowerCase() === userEmail.toLowerCase() && u.id !== userEditing.id)) {
-        setErrors(prev => ({ ...prev, email: 'User with this email already exists.' }))
-        showToast('User with this email already exists.')
-        return
+    try {
+      if (userEditing) {
+        await updateStaffApi(userEditing.id, {
+          fname: userFirstName.trim(),
+          lname: userLastName.trim(),
+          phone_number: userPhone.trim(),
+          status: userActive,
+          email: userEmail.trim(),
+          ...(userPassword ? { staff_password: userPassword } : {})
+        })
+        showToast(`User "${fullName}" updated successfully!`)
+      } else {
+        await createStaff({
+          fname: userFirstName.trim(),
+          lname: userLastName.trim(),
+          phone_number: userPhone.trim(),
+          status: userActive,
+          email: userEmail.trim(),
+          staff_password: userPassword
+        })
+        showToast(`User "${fullName}" created successfully!`)
       }
-      updateUser(userEditing.id, {
-        name: fullName,
-        email: userEmail,
-        role: userRole,
-        isActive: userActive,
-        phone: userPhone,
-      })
-      showToast(`User "${fullName}" updated successfully!`)
-    } else {
-      // Check duplicate email
-      if (usersList.some((u) => u.email.toLowerCase() === userEmail.toLowerCase())) {
-        setErrors(prev => ({ ...prev, email: 'User with this email already exists.' }))
-        showToast('User with this email already exists.')
-        return
-      }
-      addUser({
-        name: fullName,
-        email: userEmail,
-        role: userRole,
-        isActive: userActive,
-        phone: userPhone,
-      })
-      showToast(`User "${fullName}" created successfully!`)
+      await fetchStaff()
+      setIsUserModalOpen(false)
+    } catch (error: any) {
+      showToast(error.message || 'Failed to save user')
     }
-    setIsUserModalOpen(false)
   }
 
-  const handleDeleteUser = (id: string, name: string) => {
-    deleteUser(id)
-    showToast(`User "${name}" deleted.`)
-    setDeleteUserConfirm(null)
+  const handleDeleteUser = async (id: number, name: string) => {
+    try {
+      await deleteStaffApi(id)
+      showToast(`User "${name}" deleted.`)
+      setDeleteUserConfirm(null)
+      await fetchStaff()
+    } catch (error: any) {
+      showToast(error.message || 'Failed to delete user')
+    }
   }
 
-  const toggleUserStatus = (id: string, currentStatus: boolean, name: string) => {
-    updateUser(id, { isActive: !currentStatus })
-    showToast(`User "${name}" is now ${!currentStatus ? 'Active' : 'Inactive'}.`)
+  const toggleUserStatus = async (id: number, currentStatus: StaffStatus, name: string) => {
+    try {
+      const newStatus = currentStatus === StaffStatus.ACTIVE ? StaffStatus.INACTIVE : StaffStatus.ACTIVE
+      await updateStaffApi(id, { status: newStatus })
+      showToast(`User "${name}" is now ${newStatus === StaffStatus.ACTIVE ? 'Active' : 'Inactive'}.`)
+      await fetchStaff()
+    } catch (error: any) {
+      showToast(error.message || 'Failed to change user status')
+    }
   }
 
   return (
@@ -470,7 +481,7 @@ export function Users() {
                     <tr key={user.id} className="hover:bg-canvas/30 transition-colors">
                       {/* Name */}
                       <td className="px-6 py-4 font-bold text-ink text-sm">
-                        {user.name}
+                        {`${user.fname} ${user.lname}`}
                       </td>
 
                       {/* Email */}
@@ -480,8 +491,8 @@ export function Users() {
 
                       {/* Role Badge */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge variant={getRoleBadgeVariant(user.role)} className="px-2.5 py-0.5 text-xs font-semibold">
-                          {user.role}
+                        <Badge variant={getRoleBadgeVariant(user.role || 'User')} className="px-2.5 py-0.5 text-xs font-semibold">
+                          {user.role || 'User'}
                         </Badge>
                       </td>
 
@@ -489,14 +500,14 @@ export function Users() {
                       <td className="px-6 py-4 text-center">
                         <div className="flex justify-center items-center">
                           <button
-                            onClick={() => toggleUserStatus(user.id, user.isActive, user.name)}
+                            onClick={() => toggleUserStatus(user.id, user.status, `${user.fname} ${user.lname}`)}
                             className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
-                              user.isActive ? 'bg-[#0a5c60]' : 'bg-line'
+                              user.status === StaffStatus.ACTIVE ? 'bg-[#0a5c60]' : 'bg-line'
                             }`}
                           >
                             <span
                               className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                user.isActive ? 'translate-x-5' : 'translate-x-0'
+                                user.status === StaffStatus.ACTIVE ? 'translate-x-5' : 'translate-x-0'
                               }`}
                             />
                           </button>
@@ -767,12 +778,12 @@ export function Users() {
                     </label>
                     <div className="relative">
                       <select
-                        value={userActive ? 'Active' : 'Inactive'}
-                        onChange={(e) => setUserActive(e.target.value === 'Active')}
+                        value={userActive}
+                        onChange={(e) => setUserActive(e.target.value as StaffStatus)}
                         className="w-full h-11 pl-3 pr-10 border border-line rounded-lg bg-card text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all cursor-pointer appearance-none"
                       >
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
+                        <option value={StaffStatus.ACTIVE}>Active</option>
+                        <option value={StaffStatus.INACTIVE}>Inactive</option>
                       </select>
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-ink-soft">
                         <ChevronDown size={18} />
@@ -870,8 +881,8 @@ export function Users() {
                 variant="danger"
                 size="sm"
                 onClick={() => {
-                  const user = usersList.find((u) => u.id === deleteUserConfirm)
-                  if (user) handleDeleteUser(user.id, user.name)
+                  const user = apiStaffList.find((u) => u.id === deleteUserConfirm)
+                  if (user) handleDeleteUser(user.id, `${user.fname} ${user.lname}`)
                 }}
                 className="cursor-pointer"
               >

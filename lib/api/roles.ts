@@ -1,4 +1,4 @@
-import { Role, CreateRoleDto, UpdateRoleDto } from '../types/roles';
+import { Role, CreateRoleDto, UpdateRoleDto, Permission } from '../types/roles';
 import { useUserStore } from '@/store/user-store';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -14,6 +14,18 @@ const getAuthHeaders = (): Record<string, string> => {
     }
   }
   return headers;
+};
+
+// Map backend response format to frontend format
+const mapRoleResponse = (backendRole: any): Role => {
+  return {
+    id: backendRole.role_id,
+    role: backendRole.role,
+    description: backendRole.description,
+    permissions: backendRole.role_permissions 
+      ? backendRole.role_permissions.map((rp: any) => rp.permission)
+      : [],
+  };
 };
 
 export const getRoles = async (includePermissions: boolean = false): Promise<Role[]> => {
@@ -32,7 +44,8 @@ export const getRoles = async (includePermissions: boolean = false): Promise<Rol
     throw new Error(error.message || 'Failed to fetch roles');
   }
 
-  return response.json();
+  const data = await response.json();
+  return data.map(mapRoleResponse);
 };
 
 export const getRoleById = async (id: number | string, includePermissions: boolean = false): Promise<Role> => {
@@ -51,7 +64,8 @@ export const getRoleById = async (id: number | string, includePermissions: boole
     throw new Error(error.message || 'Failed to fetch role');
   }
 
-  return response.json();
+  const data = await response.json();
+  return mapRoleResponse(data);
 };
 
 export const createRole = async (data: CreateRoleDto): Promise<Role> => {
@@ -66,7 +80,8 @@ export const createRole = async (data: CreateRoleDto): Promise<Role> => {
     throw new Error(error.message || 'Failed to create role');
   }
 
-  return response.json();
+  const result = await response.json();
+  return mapRoleResponse(result);
 };
 
 export const updateRole = async (id: number | string, data: UpdateRoleDto): Promise<Role> => {
@@ -81,7 +96,8 @@ export const updateRole = async (id: number | string, data: UpdateRoleDto): Prom
     throw new Error(error.message || 'Failed to update role');
   }
 
-  return response.json();
+  const result = await response.json();
+  return mapRoleResponse(result);
 };
 
 export const deleteRole = async (id: number | string): Promise<void> => {
