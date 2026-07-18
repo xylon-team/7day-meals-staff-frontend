@@ -42,7 +42,7 @@ export function Users() {
       const staff = await getStaff()
       setApiStaffList(staff)
     } catch (error) {
-      console.error(error)
+      console.warn('Fetch error:', error)
       showToast('Failed to fetch staff users')
     }
   }
@@ -52,7 +52,7 @@ export function Users() {
       const roles = await getRoles(true)
       setApiRolesList(roles)
     } catch (error) {
-      console.error(error)
+      console.warn('Fetch error:', error)
       showToast('Failed to fetch roles')
     }
   }

@@ -17,6 +17,7 @@ import { Badge } from '@/components/Badge'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
 import { useUserStore } from '@/store/user-store'
+import { staffLogin } from '@/lib/api/login'
 
 type Role = 'Catering Manager' | 'Inventory Manager'
 
@@ -27,25 +28,26 @@ export function Login() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
-    // Mock authentication based on provided credentials
-    if (
-      email === 'catering@7daymeals.lk' &&
-      password === 'Catering@7DM2024'
-    ) {
-      login(email, 'Catering Manager')
+    setIsLoading(true)
+    
+    try {
+      const data = await staffLogin({
+        email: email,
+        staff_password: password
+      })
+      
+      // We default to 'Staff' as role since it's not provided by the backend JWT payload yet
+      login(email, 'Staff', data.access_token)
       router.push('/dashboard')
-    } else if (
-      email === 'inventory@7daymeals.lk' &&
-      password === 'Inventory@7DM2024'
-    ) {
-      login(email, 'Inventory Manager')
-      router.push('/dashboard')
-    } else {
-      setError('The email address or password you entered is incorrect. Please try again or reset your password if you have forgotten it.')
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during authentication.')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -176,8 +178,8 @@ export function Login() {
               </div>
             )}
 
-            <Button type="submit" className="w-full" size="lg">
-              Sign In
+            <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+              {isLoading ? 'Signing In...' : 'Sign In'}
             </Button>
             
             <div className="mt-4 text-center">

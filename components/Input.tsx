@@ -15,6 +15,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         )}
         <input
           ref={ref}
+          suppressHydrationWarning={true}
           className={cn(
             'flex h-10 w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink placeholder:text-ink-soft focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50',
             icon && 'pl-10',
