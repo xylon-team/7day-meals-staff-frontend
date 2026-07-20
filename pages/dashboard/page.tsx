@@ -1,7 +1,9 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useUserStore } from '@/store/user-store'
+import { getAdminDashboardStats } from '@/lib/api/dashboard'
+import { AdminDashboardData } from '@/lib/types/dashboard'
 import {
   Users,
   UserSquare2,
@@ -94,33 +96,61 @@ function StatCard({
 }
 
 function AdminDashboard() {
+  const [data, setData] = useState<AdminDashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getAdminDashboardStats()
+      .then(setData)
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <div className="p-6 flex justify-center text-ink-soft">Loading dashboard...</div>
+  if (!data) return <div className="p-6 flex justify-center text-danger-fg">Failed to load dashboard</div>
+
+  const weeklyDataFormatted = [
+    { name: 'Mon', orders: data.weekly_orders.Monday || 0 },
+    { name: 'Tue', orders: data.weekly_orders.Tuesday || 0 },
+    { name: 'Wed', orders: data.weekly_orders.Wednesday || 0 },
+    { name: 'Thu', orders: data.weekly_orders.Thursday || 0 },
+    { name: 'Fri', orders: data.weekly_orders.Friday || 0 },
+    { name: 'Sat', orders: data.weekly_orders.Saturday || 0 },
+    { name: 'Sun', orders: data.weekly_orders.Sunday || 0 },
+  ]
+
+  const mealTypeDataFormatted = Object.entries(data.orders_by_categories || {}).map(([key, value]) => ({
+    name: key,
+    value: value,
+  }))
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <StatCard
           title="Total Staff"
-          value="42"
+          value={data.total_staff.toString()}
           icon={Users}
           trend="+2%"
           trendUp={true}
         />
         <StatCard
           title="Total Customers"
-          value="1,284"
+          value={data.total_customers.toString()}
           icon={UserSquare2}
           trend="+12%"
           trendUp={true}
         />
         <StatCard
           title="Active Orders"
-          value="384"
+          value={data.active_orders.toString()}
           icon={ShoppingBag}
           trend="+5%"
           trendUp={true}
         />
         <StatCard
           title="Revenue Today"
-          value="Rs. 145,000"
+          value={`Rs. ${data.revenue_today.toLocaleString()}`}
           icon={DollarSign}
           trend="-1%"
           trendUp={false}
@@ -130,10 +160,10 @@ function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Weekly Orders This Month</h3>
+            <h3 className="text-lg font-semibold mb-4">Weekly Orders This Week</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={weeklyData}>
+                <LineChart data={weeklyDataFormatted}>
                   <CartesianGrid
                     strokeDasharray="3 3"
                     vertical={false}
@@ -180,7 +210,7 @@ function AdminDashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={mealTypeData}
+                    data={mealTypeDataFormatted}
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
@@ -188,7 +218,7 @@ function AdminDashboard() {
                     paddingAngle={5}
                     dataKey="value"
                   >
-                    {mealTypeData.map((entry, index) => (
+                    {mealTypeDataFormatted.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
                         fill={COLORS[index % COLORS.length]}
@@ -199,7 +229,7 @@ function AdminDashboard() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="flex flex-wrap justify-center gap-4 mt-4">
-                {mealTypeData.map((entry, index) => (
+                {mealTypeDataFormatted.map((entry, index) => (
                   <div
                     key={entry.name}
                     className="flex items-center text-xs text-ink-soft"
