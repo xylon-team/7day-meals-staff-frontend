@@ -6,7 +6,7 @@ import { useUserStore } from '@/store/user-store'
 import { Input } from '@/components/Input'
 import { Button } from '@/components/Button'
 import { Badge } from '@/components/Badge'
-import { getStaff, updateStaff } from '@/lib/api/staff'
+import { getStaff, getStaffById, updateStaff } from '@/lib/api/staff'
 
 interface ProfileData {
   firstName: string
@@ -19,7 +19,7 @@ export function Profile() {
   const { user, updateProfile } = useUserStore()
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [staffId, setStaffId] = useState<number | string>('')
+  const [staffId, setStaffId] = useState<number | string>(user?.id || '')
 
   const [formData, setFormData] = useState<ProfileData>({
     firstName: '',
@@ -53,13 +53,31 @@ export function Profile() {
 
   useEffect(() => {
     if (!user) return
+    if (user.id) {
+      setStaffId(user.id)
+    }
 
     const loadProfile = async () => {
       try {
-        const staffList = await getStaff()
-        const currentStaff = staffList.find(
-          (s) => s.email?.toLowerCase() === user.username.toLowerCase()
-        )
+        let currentStaff = null
+        if (user.id) {
+          try {
+            currentStaff = await getStaffById(user.id)
+          } catch (e) {
+            console.warn('Failed to load profile by ID, trying email fallback', e)
+          }
+        }
+        
+        if (!currentStaff) {
+          try {
+            const staffList = await getStaff()
+            currentStaff = staffList.find(
+              (s) => s.id === Number(user.id) || s.email?.toLowerCase() === user.username.toLowerCase()
+            )
+          } catch (e) {
+            console.warn('Failed to load staff list fallback', e)
+          }
+        }
 
         if (currentStaff) {
           setStaffId(currentStaff.id)
@@ -78,20 +96,20 @@ export function Profile() {
             firstName: nameParts[0] || '',
             lastName: nameParts.slice(1).join(' ') || '',
             email: user.username,
-            phone: '',
+            phone: user.phone || '',
           }
           setFormData(data)
           setOriginalData(data)
         }
       } catch (error) {
-        console.error('Failed to fetch profile details:', error)
+        console.warn('Failed to fetch profile details, using user store fallbacks:', error)
         // Load fallback from user store state
         const nameParts = user.name.split(' ')
         const data = {
           firstName: nameParts[0] || '',
           lastName: nameParts.slice(1).join(' ') || '',
           email: user.username,
-          phone: '',
+          phone: user.phone || '',
         }
         setFormData(data)
         setOriginalData(data)
@@ -130,18 +148,21 @@ export function Profile() {
     }
 
     try {
-      if (staffId) {
-        await updateStaff(staffId, {
+      const activeId = staffId || user?.id
+      if (activeId) {
+        await updateStaff(activeId, {
           fname: formData.firstName,
           lname: formData.lastName,
           email: formData.email,
           phone_number: formData.phone,
         })
+      } else {
+        throw new Error('User ID is missing. Cannot update profile on backend.')
       }
       
       // Update global user store state
       const fullName = `${formData.firstName} ${formData.lastName}`
-      updateProfile(fullName, formData.email)
+      updateProfile(fullName, formData.email, formData.phone)
 
       setOriginalData(formData)
       setIsEditing(false)
@@ -156,13 +177,21 @@ export function Profile() {
     const newErrors: Record<string, string> = {}
     if (!passwordData.currentPassword)
       newErrors.currentPassword = 'Current password is required'
-    if (!passwordData.newPassword)
+    
+    if (!passwordData.newPassword) {
       newErrors.newPassword = 'New password is required'
-    else if (passwordData.newPassword.length < 8)
+    } else if (passwordData.newPassword.length < 8) {
       newErrors.newPassword = 'Password must be at least 8 characters'
-    if (!passwordData.confirmPassword)
+    } else {
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/;
+      if (!passwordRegex.test(passwordData.newPassword)) {
+        newErrors.newPassword = 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'
+      }
+    }
+
+    if (!passwordData.confirmPassword) {
       newErrors.confirmPassword = 'Please confirm your password'
-    else if (passwordData.newPassword !== passwordData.confirmPassword) {
+    } else if (passwordData.newPassword !== passwordData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match'
     }
 
@@ -172,11 +201,15 @@ export function Profile() {
     }
 
     try {
-      if (staffId) {
-        await updateStaff(staffId, {
+      const activeId = staffId || user?.id
+      if (activeId) {
+        await updateStaff(activeId, {
           staff_password: passwordData.newPassword,
         })
+      } else {
+        throw new Error('User ID is missing. Cannot update password on backend.')
       }
+      
       setPasswordData({
         currentPassword: '',
         newPassword: '',
