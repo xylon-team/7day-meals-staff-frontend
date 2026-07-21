@@ -1,12 +1,13 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { User as UserIcon, Mail as MailIcon, Phone as PhoneIcon, Lock as LockIcon, Check } from 'lucide-react'
+import { User as UserIcon, Mail as MailIcon, Phone as PhoneIcon, Lock as LockIcon, Check, Eye, EyeOff } from 'lucide-react'
 import { useUserStore } from '@/store/user-store'
 import { Input } from '@/components/Input'
 import { Button } from '@/components/Button'
 import { Badge } from '@/components/Badge'
 import { getStaff, getStaffById, updateStaff } from '@/lib/api/staff'
+import { staffLogin } from '@/lib/api/login'
 
 interface ProfileData {
   firstName: string
@@ -40,6 +41,10 @@ export function Profile() {
     newPassword: '',
     confirmPassword: '',
   })
+
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [toastMessage, setToastMessage] = useState<string | null>(null)
@@ -140,7 +145,16 @@ export function Profile() {
     if (!formData.firstName.trim()) newErrors.firstName = 'First name is required'
     if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required'
     if (!formData.email.trim()) newErrors.email = 'Email is required'
-    if (!formData.phone.trim()) newErrors.phone = 'Phone number is required'
+    
+    const phoneTrimmed = formData.phone.trim()
+    if (!phoneTrimmed) {
+      newErrors.phone = 'Phone number is required'
+    } else {
+      const phoneRegex = /^(?:\+94|0)?7[0-9]{8}$/
+      if (!phoneRegex.test(phoneTrimmed)) {
+        newErrors.phone = 'Enter a valid Sri Lankan phone number (e.g. +94771234567 or 0771234567)'
+      }
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
@@ -201,6 +215,17 @@ export function Profile() {
     }
 
     try {
+      // Verify current password by performing a background login attempt
+      try {
+        await staffLogin({
+          email: user.username,
+          staff_password: passwordData.currentPassword,
+        })
+      } catch (e) {
+        setErrors({ currentPassword: 'Current password is incorrect' })
+        return
+      }
+
       const activeId = staffId || user?.id
       if (activeId) {
         await updateStaff(activeId, {
@@ -359,52 +384,82 @@ export function Profile() {
             <label className="block text-sm font-medium text-ink mb-1.5">
               Current Password
             </label>
-            <Input
-              type="password"
-              value={passwordData.currentPassword}
-              onChange={(e) =>
-                setPasswordData({
-                  ...passwordData,
-                  currentPassword: e.target.value,
-                })
-              }
-              icon={<LockIcon className="w-5 h-5" />}
-              error={errors.currentPassword}
-            />
+            <div className="relative">
+              <Input
+                type={showCurrentPassword ? 'text' : 'password'}
+                className="pr-10"
+                value={passwordData.currentPassword}
+                onChange={(e) =>
+                  setPasswordData({
+                    ...passwordData,
+                    currentPassword: e.target.value,
+                  })
+                }
+                icon={<LockIcon className="w-5 h-5" />}
+                error={errors.currentPassword}
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                className="absolute right-3 top-3 text-ink-soft hover:text-ink"
+              >
+                {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-ink mb-1.5">
               New Password
             </label>
-            <Input
-              type="password"
-              value={passwordData.newPassword}
-              onChange={(e) =>
-                setPasswordData({
-                  ...passwordData,
-                  newPassword: e.target.value,
-                })
-              }
-              icon={<LockIcon className="w-5 h-5" />}
-              error={errors.newPassword}
-            />
+            <div className="relative">
+              <Input
+                type={showNewPassword ? 'text' : 'password'}
+                className="pr-10"
+                value={passwordData.newPassword}
+                onChange={(e) =>
+                  setPasswordData({
+                    ...passwordData,
+                    newPassword: e.target.value,
+                  })
+                }
+                icon={<LockIcon className="w-5 h-5" />}
+                error={errors.newPassword}
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                className="absolute right-3 top-3 text-ink-soft hover:text-ink"
+              >
+                {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-ink mb-1.5">
               Confirm Password
             </label>
-            <Input
-              type="password"
-              value={passwordData.confirmPassword}
-              onChange={(e) =>
-                setPasswordData({
-                  ...passwordData,
-                  confirmPassword: e.target.value,
-                })
-              }
-              icon={<LockIcon className="w-5 h-5" />}
-              error={errors.confirmPassword}
-            />
+            <div className="relative">
+              <Input
+                type={showConfirmPassword ? 'text' : 'password'}
+                className="pr-10"
+                value={passwordData.confirmPassword}
+                onChange={(e) =>
+                  setPasswordData({
+                    ...passwordData,
+                    confirmPassword: e.target.value,
+                  })
+                }
+                icon={<LockIcon className="w-5 h-5" />}
+                error={errors.confirmPassword}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-3 text-ink-soft hover:text-ink"
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
           <Button onClick={handlePasswordUpdate} variant="primary" className="mt-2">
             Update Password
