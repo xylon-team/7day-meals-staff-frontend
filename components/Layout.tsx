@@ -175,6 +175,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   }
 
   const getPageTitle = () => {
+    if (pathname === '/profile') return 'My Profile'
     const allItems = navConfig.flatMap((c) => c.items)
     const item = allItems.find((i) => i.path === pathname)
     return item ? item.name : 'Dashboard'

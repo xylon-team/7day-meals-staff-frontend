@@ -14,6 +14,7 @@ interface UserStoreState {
   user: User | null
   login: (username: string, role: string, accessToken?: string) => void
   logout: () => void
+  updateProfile: (name: string, username: string) => void
 }
 
 export const useUserStore = create<UserStoreState>()(
@@ -35,6 +36,16 @@ export const useUserStore = create<UserStoreState>()(
           },
         }),
       logout: () => set({ user: null }),
+      updateProfile: (name: string, username: string) =>
+        set((state) => ({
+          user: state.user
+            ? {
+                ...state.user,
+                name,
+                username,
+              }
+            : null,
+        })),
     }),
     {
       name: '7day-meals-user-storage',
