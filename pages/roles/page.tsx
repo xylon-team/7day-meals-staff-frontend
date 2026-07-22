@@ -5,181 +5,88 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronDown, Shield, Utensils, Save, Check } from 'lucide-react'
 import { useStore, RolePermissions } from '@/app/store'
 import { Role } from '@/store/user-store'
+import { getRoles, getAllPermissions, assignRolePermissions, removeRolePermissions } from '@/lib/api/roles'
+import { Role as ApiRole } from '@/lib/types/roles'
 import { Badge } from '@/components/Badge'
 import { Button } from '@/components/Button'
 import { Card, CardContent } from '@/components/Card'
 
 interface PermissionRow {
   code: string
-  description: string
   isParent: boolean
   parentId?: string
   actions: ('add' | 'change' | 'delete' | 'view')[]
 }
 
 const permissionsList: PermissionRow[] = [
-  // Meal Management Module
-  {
-    code: 'meal_management',
-    description: 'Full access to meal management',
-    isParent: true,
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'view_meals',
-    description: 'Allows user to view meals list',
-    isParent: false,
-    parentId: 'meal_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'create_meals',
-    description: 'Allows user to create new meals',
-    isParent: false,
-    parentId: 'meal_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'edit_meals',
-    description: 'Allows user to edit meal details',
-    isParent: false,
-    parentId: 'meal_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'delete_meals',
-    description: 'Allows user to delete meals',
-    isParent: false,
-    parentId: 'meal_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-
-  // Order Management Module
-  {
-    code: 'order_management',
-    description: 'Full access to order management',
-    isParent: true,
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'view_orders',
-    description: 'Allows user to view orders',
-    isParent: false,
-    parentId: 'order_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'update_order_status',
-    description: 'Allows user to update order status',
-    isParent: false,
-    parentId: 'order_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'cancel_order',
-    description: 'Allows user to cancel orders',
-    isParent: false,
-    parentId: 'order_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-
-  // Inventory Module
-  {
-    code: 'inventory_management',
-    description: 'Full access to inventory management',
-    isParent: true,
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'view_inventory',
-    description: 'Allows user to view inventory',
-    isParent: false,
-    parentId: 'inventory_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'add_inventory',
-    description: 'Allows user to add inventory items',
-    isParent: false,
-    parentId: 'inventory_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-
-  // Staff Module
-  {
-    code: 'staff_management',
-    description: 'Full access to staff management',
-    isParent: true,
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'view_staff',
-    description: 'Allows user to view staff list',
-    isParent: false,
-    parentId: 'staff_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'manage_salary',
-    description: 'Allows user to manage salary records',
-    isParent: false,
-    parentId: 'staff_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-
-  // Reports Module
-  {
-    code: 'view_reports',
-    description: 'Allows user to view reports',
-    isParent: true,
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'export_reports',
-    description: 'Allows user to export reports',
-    isParent: false,
-    parentId: 'view_reports',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-
-  // Logs Module
-  {
-    code: 'view_logs',
-    description: 'Allows user to view system logs',
-    isParent: true,
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'manage_settings',
-    description: 'Allows user to manage system settings',
-    isParent: false,
-    parentId: 'view_logs',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'manage_users',
-    description: 'Allows user to manage system users',
-    isParent: false,
-    parentId: 'view_logs',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
+  { code: 'meal_item', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'meal_package', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'promotion', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'customer', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'orders', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'customer_feedback', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'payment_record', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'complaints', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'meal_report', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'logs', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'supplier', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'inventory_item', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'low_stock_threshold', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 're_stock', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 're_stock_history', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'supply_request', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'inventory_report', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'system_settings', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'permission_assign', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'role', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'staff', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'analysis_report', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'recovery_account', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
 ]
 
 export function Permissions() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { permissions, updateRolePermissions } = useStore()
+  const { updateRolePermissions } = useStore()
 
   // Track the current role being edited
   const [selectedRole, setSelectedRole] = useState<Role>('Catering Manager')
+  const [apiRolesList, setApiRolesList] = useState<ApiRole[]>([])
+  const [masterPermissionsMap, setMasterPermissionsMap] = useState<Record<string, number>>({})
 
-  // Set selectedRole from query param if present
-  useEffect(() => {
-    const roleParam = searchParams?.get('role')
-    if (roleParam && permissions[roleParam]) {
-      setSelectedRole(roleParam)
+  const fetchRoles = async () => {
+    try {
+      const data = await getRoles(true)
+      setApiRolesList(data)
+      
+      const roleParam = searchParams?.get('role')
+      if (roleParam && data.find(r => r.role === roleParam)) {
+        setSelectedRole(roleParam)
+      } else if (data.length > 0) {
+        setSelectedRole(prev => data.find(r => r.role === prev) ? prev : data[0].role)
+      }
+    } catch (error) {
+      console.warn('Failed to fetch roles', error)
     }
-  }, [searchParams, permissions])
+  }
+
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      await fetchRoles()
+      try {
+        const allPerms = await getAllPermissions()
+        const permsMap: Record<string, number> = {}
+        allPerms.forEach((p: any) => {
+          permsMap[p.permission_type] = p.permission_id
+        })
+        setMasterPermissionsMap(permsMap)
+      } catch (e) {
+        console.warn('Failed to fetch master permissions', e)
+      }
+    }
+    fetchInitialData()
+  }, [searchParams])
+  
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
   // Local state for edits
@@ -190,9 +97,24 @@ export function Permissions() {
 
   // Load permissions when role changes
   useEffect(() => {
-    const rolePerms = permissions[selectedRole] || {}
-    setLocalPermissions(JSON.parse(JSON.stringify(rolePerms)))
-  }, [selectedRole, permissions])
+    const activeRole = apiRolesList.find(r => r.role === selectedRole)
+    if (!activeRole) return
+
+    const initialPerms: RolePermissions = {}
+    const backendPerms = activeRole.permissions || []
+
+    backendPerms.forEach((p: any) => {
+      const parts = p.permission_type?.split(':')
+      if (parts && parts.length === 2) {
+        const module = parts[0]
+        const action = parts[1] as 'add' | 'change' | 'delete' | 'view'
+        if (!initialPerms[module]) initialPerms[module] = {}
+        initialPerms[module][action] = true
+      }
+    })
+
+    setLocalPermissions(initialPerms)
+  }, [selectedRole, apiRolesList])
 
   const showToast = (message: string) => {
     setToastMessage(message)
@@ -276,68 +198,84 @@ export function Permissions() {
 
   const { checkedCount, totalCount } = calculateStats()
 
-  const handleSave = () => {
-    updateRolePermissions(selectedRole, localPermissions)
-    showToast(`Permissions updated successfully for ${selectedRole}!`)
+  const handleSave = async () => {
+    const activeRole = apiRolesList.find(r => r.role === selectedRole)
+    if (!activeRole) return
+
+    const desiredPermStrings: string[] = []
+    Object.keys(localPermissions).forEach(module => {
+      const perms = localPermissions[module]
+      if (perms) {
+        Object.keys(perms).forEach(action => {
+          if (perms[action as 'add' | 'change' | 'delete' | 'view']) {
+            desiredPermStrings.push(`${module}:${action}`)
+          }
+        })
+      }
+    })
+
+    const desiredIds = desiredPermStrings
+      .map(str => masterPermissionsMap[str])
+      .filter(id => id !== undefined)
+
+    const currentBackendPerms = activeRole.permissions || []
+    const currentIds = currentBackendPerms
+      .map((p: any) => p.permission_id)
+      .filter((id: number | undefined) => id !== undefined)
+
+    const idsToAssign = desiredIds.filter(id => !currentIds.includes(id))
+    const idsToRemove = currentIds.filter(id => !desiredIds.includes(id))
+
+    try {
+      if (idsToAssign.length > 0) {
+        await assignRolePermissions(activeRole.id, idsToAssign)
+      }
+      if (idsToRemove.length > 0) {
+        await removeRolePermissions(activeRole.id, idsToRemove)
+      }
+      
+      showToast(`Permissions updated successfully for ${selectedRole}!`)
+      updateRolePermissions(selectedRole, localPermissions)
+      await fetchRoles()
+    } catch (e) {
+      showToast(`Failed to update permissions.`)
+      console.error(e)
+    }
   }
 
   const handleCancel = () => {
-    // Reset to store state
-    const rolePerms = permissions[selectedRole] || {}
-    setLocalPermissions(JSON.parse(JSON.stringify(rolePerms)))
+    const activeRole = apiRolesList.find(r => r.role === selectedRole)
+    if (!activeRole) return
+
+    const initialPerms: RolePermissions = {}
+    const backendPerms = activeRole.permissions || []
+
+    backendPerms.forEach((p: any) => {
+      const parts = p.permission_type?.split(':')
+      if (parts && parts.length === 2) {
+        const module = parts[0]
+        const action = parts[1] as 'add' | 'change' | 'delete' | 'view'
+        if (!initialPerms[module]) initialPerms[module] = {}
+        initialPerms[module][action] = true
+      }
+    })
+
+    setLocalPermissions(initialPerms)
     showToast('Changes reverted back to saved state.')
   }
 
   // Group permission rows by their module group
   const groupedModules = [
     {
-      id: 'meal_management',
-      name: 'Meal Management',
-      rows: permissionsList.filter(
-        (p) => p.code === 'meal_management' || p.parentId === 'meal_management'
-      ),
-    },
-    {
-      id: 'order_management',
-      name: 'Order Management',
-      rows: permissionsList.filter(
-        (p) => p.code === 'order_management' || p.parentId === 'order_management'
-      ),
-    },
-    {
-      id: 'inventory_management',
-      name: 'Inventory Management',
-      rows: permissionsList.filter(
-        (p) => p.code === 'inventory_management' || p.parentId === 'inventory_management'
-      ),
-    },
-    {
-      id: 'staff_management',
-      name: 'Staff Management',
-      rows: permissionsList.filter(
-        (p) => p.code === 'staff_management' || p.parentId === 'staff_management'
-      ),
-    },
-    {
-      id: 'view_reports',
-      name: 'Reports',
-      rows: permissionsList.filter(
-        (p) => p.code === 'view_reports' || p.parentId === 'view_reports'
-      ),
-    },
-    {
-      id: 'view_logs',
-      name: 'System Logs & Settings',
-      rows: permissionsList.filter(
-        (p) => p.code === 'view_logs' || p.parentId === 'view_logs'
-      ),
+      id: 'all_permissions',
+      name: 'All Permissions',
+      rows: permissionsList,
     },
   ]
 
-  const roles: Role[] = ['Catering Manager', 'Admin', 'Inventory Manager']
+  const roles: Role[] = apiRolesList.map((r) => r.role as Role)
 
-  // Determine the display total (Mockup denominator matches 30 for Catering Manager / Inventory Manager)
-  const displayTotal = selectedRole === 'Admin' ? totalCount : 30
+  const displayTotal = totalCount
 
   return (
     <div className="space-y-6">
@@ -431,7 +369,6 @@ export function Permissions() {
             <thead>
               <tr className="bg-[#f2f5f7] border-b border-line">
                 <th className="px-6 py-4 font-semibold text-ink text-xs uppercase tracking-wider w-[240px]">Permission</th>
-                <th className="px-6 py-4 font-semibold text-ink text-xs uppercase tracking-wider w-[280px]">Description</th>
                 <th className="px-6 py-4 font-semibold text-ink text-xs uppercase tracking-wider text-center w-[100px]">All</th>
                 <th className="px-6 py-4 font-semibold text-ink text-xs uppercase tracking-wider text-center w-[90px]">Add</th>
                 <th className="px-6 py-4 font-semibold text-ink text-xs uppercase tracking-wider text-center w-[90px]">Change</th>
@@ -467,12 +404,7 @@ export function Permissions() {
                           </span>
                         </td>
 
-                        {/* Description */}
-                        <td className="px-6 py-4 text-ink-soft text-sm">
-                          <span className={isParent ? 'text-ink font-medium' : ''}>
-                            {row.description}
-                          </span>
-                        </td>
+
 
                         {/* All Toggle */}
                         <td className="px-6 py-4 text-center">
@@ -553,7 +485,7 @@ export function Permissions() {
                   {/* Spacing group divider */}
                   {mIdx < groupedModules.length - 1 && (
                     <tr className="h-4 bg-[#f8fafc]/30">
-                      <td colSpan={7} className="border-t border-b border-line/50 p-0" />
+                      <td colSpan={6} className="border-t border-b border-line/50 p-0" />
                     </tr>
                   )}
                 </React.Fragment>

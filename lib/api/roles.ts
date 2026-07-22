@@ -152,3 +152,46 @@ export const deleteRole = async (id: number | string): Promise<void> => {
     }
   }
 };
+
+export const getAllPermissions = async (): Promise<any[]> => {
+  const url = `${API_URL}/role/permissions`;
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch permissions');
+    return await response.json();
+  } catch (error) {
+    console.warn('Backend unavailable, mocking getAllPermissions');
+    return [];
+  }
+};
+
+export const assignRolePermissions = async (roleId: number | string, permissionIds: number[]): Promise<void> => {
+  const url = `${API_URL}/role/${roleId}/permissions`;
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ permissionIds }),
+    });
+    if (!response.ok) throw new Error('Failed to assign permissions');
+  } catch (error) {
+    console.warn(`Backend unavailable, mocking assignRolePermissions for role ${roleId}`);
+  }
+};
+
+export const removeRolePermissions = async (roleId: number | string, permissionIds: number[]): Promise<void> => {
+  const url = `${API_URL}/role/${roleId}/permissions`;
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ permissionIds }),
+    });
+    if (!response.ok) throw new Error('Failed to remove permissions');
+  } catch (error) {
+    console.warn(`Backend unavailable, mocking removeRolePermissions for role ${roleId}`);
+  }
+};
