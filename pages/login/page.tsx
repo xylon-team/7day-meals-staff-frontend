@@ -20,6 +20,23 @@ import { Input } from '@/components/Input'
 import { useUserStore } from '@/store/user-store'
 import { staffLogin } from '@/lib/api/login'
 
+const decodeJwt = (token: string) => {
+  try {
+    const base64Url = token.split('.')[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(
+      window
+        .atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
+    return JSON.parse(jsonPayload)
+  } catch (e) {
+    return null
+  }
+}
+
 type Role = 'Catering Manager' | 'Inventory Manager'
 
 export function Login() {
@@ -35,15 +52,31 @@ export function Login() {
     e.preventDefault()
     setError('')
     setIsLoading(true)
-    
+
     try {
       const data = await staffLogin({
         email: email,
         staff_password: password
       })
-      
-      // We default to 'Staff' as role since it's not provided by the backend JWT payload yet
-      login(email, 'Staff', data.access_token)
+
+      const decoded = decodeJwt(data.access_token)
+      const staffId = decoded?.sub
+
+      let staffName = 'Staff Member'
+      let staffRole = 'Staff'
+
+      if (email.toLowerCase().includes('catering')) {
+        staffName = 'Catering Manager'
+        staffRole = 'Catering Manager'
+      } else if (email.toLowerCase().includes('inventory')) {
+        staffName = 'Inventory Manager'
+        staffRole = 'Inventory Manager'
+      } else {
+        const namePart = email.split('@')[0]
+        staffName = namePart.charAt(0).toUpperCase() + namePart.slice(1)
+      }
+
+      login(email, staffRole, data.access_token, staffId, staffName)
       router.push('/dashboard')
     } catch (err: any) {
       setError(err.message || 'An error occurred during authentication.')
@@ -182,7 +215,7 @@ export function Login() {
             <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
               {isLoading ? 'Signing In...' : 'Sign In'}
             </Button>
-            
+
             <div className="mt-4 text-center">
               <button
                 type="button"
