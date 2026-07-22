@@ -12,6 +12,7 @@ import {
   ChefHat,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 import { Badge } from '@/components/Badge'
 import { Button } from '@/components/Button'
@@ -132,12 +133,12 @@ export function Login() {
                 <label className="block text-sm font-medium text-ink">
                   Password
                 </label>
-                <a
-                  href="#"
+                <Link
+                  href="/forgot-password"
                   className="text-xs text-primary hover:text-primary-dark font-medium"
                 >
                   Forgot Password?
-                </a>
+                </Link>
               </div>
               <div className="relative">
                 <Input
