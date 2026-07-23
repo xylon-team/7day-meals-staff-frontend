@@ -207,3 +207,32 @@ export const deleteStaff = async (id: number | string): Promise<void> => {
     }
   }
 };
+
+export const assignStaffRole = async (staffId: number | string, roleId: number): Promise<void> => {
+  try {
+    const response = await fetch(`${API_URL}/staff/${staffId}/role`, {
+      method: 'POST',
+      headers: await getAuthHeaders(),
+      body: JSON.stringify([roleId]),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to assign staff role');
+    }
+  } catch (error) {
+    console.warn(`Failed to assign role to staff ${staffId}`, error);
+  }
+};
+
+export const removeStaffRole = async (staffId: number | string, roleId: number): Promise<void> => {
+  try {
+    const response = await fetch(`${API_URL}/staff/${staffId}/role/${roleId}`, {
+      method: 'DELETE',
+      headers: await getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to remove staff role');
+    }
+  } catch (error) {
+    console.warn(`Failed to remove role ${roleId} from staff ${staffId}`, error);
+  }
+};

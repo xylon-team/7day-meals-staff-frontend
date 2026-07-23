@@ -18,7 +18,7 @@ import {
 import { useStore, UserItem } from '@/app/store'
 import { getRoles, createRole, updateRole as updateRoleApi, deleteRole as deleteRoleApi } from '@/lib/api/roles'
 import { Role } from '@/lib/types/roles'
-import { getStaff, createStaff, updateStaff as updateStaffApi, deleteStaff as deleteStaffApi } from '@/lib/api/staff'
+import { getStaff, createStaff, updateStaff as updateStaffApi, deleteStaff as deleteStaffApi, assignStaffRole, removeStaffRole } from '@/lib/api/staff'
 import { Staff, StaffStatus } from '@/lib/types/staff'
 import { Badge } from '@/components/Badge'
 import { Button } from '@/components/Button'
@@ -287,9 +287,24 @@ export function Users() {
           email: userEmail.trim(),
           ...(userPassword ? { staff_password: userPassword } : {})
         })
+
+        // If the role has changed, update it in the database
+        if (userEditing.role !== userRole) {
+          if (userEditing.role) {
+            const oldRoleObj = apiRolesList.find((r) => r.role === userEditing.role)
+            if (oldRoleObj) {
+              await removeStaffRole(userEditing.id, oldRoleObj.id)
+            }
+          }
+          const newRoleObj = apiRolesList.find((r) => r.role === userRole)
+          if (newRoleObj) {
+            await assignStaffRole(userEditing.id, newRoleObj.id)
+          }
+        }
+
         showToast(`User "${fullName}" updated successfully!`)
       } else {
-        await createStaff({
+        const newStaff = await createStaff({
           fname: userFirstName.trim(),
           lname: userLastName.trim(),
           phone_number: userPhone.trim(),
@@ -297,6 +312,13 @@ export function Users() {
           email: userEmail.trim(),
           staff_password: userPassword
         })
+
+        // Assign the selected role to the newly created staff member
+        const selectedRoleObj = apiRolesList.find((r) => r.role === userRole)
+        if (selectedRoleObj && newStaff && newStaff.id) {
+          await assignStaffRole(newStaff.id, selectedRoleObj.id)
+        }
+
         showToast(`User "${fullName}" created successfully!`)
       }
       await fetchStaff()
