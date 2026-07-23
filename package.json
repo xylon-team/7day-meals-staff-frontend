@@ -9,12 +9,14 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "chromedriver": "^150.0.4",
     "clsx": "^2.1.0",
     "lucide-react": "^0.469.0",
     "next": "16.2.9",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^2.12.0",
+    "selenium-webdriver": "^4.46.0",
     "tailwind-merge": "^2.2.0",
     "zustand": "^5.0.14"
   },
@@ -23,6 +25,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/selenium-webdriver": "^4.35.6",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",
