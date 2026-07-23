@@ -1,9 +1,9 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ChevronDown, Shield, Utensils, Save, Check } from 'lucide-react'
-import { useStore, RolePermissions } from '@/app/store'
+import { ChevronDown, Save, Check } from 'lucide-react'
+import { useStore, RolePermissions, PermissionActions } from '@/app/store'
 import { Role } from '@/store/user-store'
 import { getRoles, getAllPermissions, assignRolePermissions, removeRolePermissions } from '@/lib/api/roles'
 import { Role as ApiRole } from '@/lib/types/roles'
@@ -18,31 +18,49 @@ interface PermissionRow {
   actions: ('add' | 'change' | 'delete' | 'view')[]
 }
 
-const permissionsList: PermissionRow[] = [
+const defaultPermissionsList: PermissionRow[] = [
   { code: 'meal_item', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
   { code: 'meal_package', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
   { code: 'promotion', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'customer', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'orders', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'customer_feedback', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'payment_record', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'complaints', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'meal_report', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'logs', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'customer', isParent: false, actions: ['delete', 'view'] },
+  { code: 'orders', isParent: false, actions: ['change', 'delete', 'view'] },
+  { code: 'customer_feedback', isParent: false, actions: ['change', 'view'] },
+  { code: 'payment_record', isParent: false, actions: ['view'] },
+  { code: 'complaints', isParent: false, actions: ['change', 'view'] },
+  { code: 'meal_report', isParent: false, actions: ['add', 'view'] },
+  { code: 'logs', isParent: false, actions: ['view'] },
   { code: 'supplier', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
   { code: 'inventory_item', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'low_stock_threshold', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 're_stock', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 're_stock_history', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'low_stock_threshold', isParent: false, actions: ['add', 'change', 'view'] },
+  { code: 'restock', isParent: false, actions: ['add', 'view'] },
+  { code: 'restock_history', isParent: false, actions: ['view'] },
   { code: 'supply_request', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'inventory_report', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'system_settings', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'permission_assign', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'inventory_report', isParent: false, actions: ['add', 'view'] },
+  { code: 'system_settings', isParent: false, actions: ['change', 'view'] },
+  { code: 'permission_assign', isParent: false, actions: ['change', 'view'] },
   { code: 'role', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
   { code: 'staff', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'analysis_report', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'recovery_account', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'analysis_report', isParent: false, actions: ['add', 'view'] },
+  { code: 'recovery_account', isParent: false, actions: ['change', 'view'] },
 ]
+
+const parsePermissionType = (type: string) => {
+  if (!type) return null
+  const lastUnderscoreIndex = type.lastIndexOf('_')
+  if (lastUnderscoreIndex === -1) return null
+
+  const modCode = type.substring(0, lastUnderscoreIndex)
+  const action = type.substring(lastUnderscoreIndex + 1) as 'add' | 'change' | 'delete' | 'view'
+
+  if (!['add', 'change', 'delete', 'view'].includes(action)) return null
+  return { modCode, action }
+}
+
+
+interface DbPermission {
+  permission_id: number
+  permission_type: string
+}
 
 export function Permissions() {
   const router = useRouter()
@@ -53,8 +71,9 @@ export function Permissions() {
   const [selectedRole, setSelectedRole] = useState<Role>('Catering Manager')
   const [apiRolesList, setApiRolesList] = useState<ApiRole[]>([])
   const [masterPermissionsMap, setMasterPermissionsMap] = useState<Record<string, number>>({})
+  const [permissionsList, setPermissionsList] = useState<PermissionRow[]>(defaultPermissionsList)
 
-  const fetchRoles = async () => {
+  const fetchRoles = useCallback(async () => {
     try {
       const data = await getRoles(true)
       setApiRolesList(data)
@@ -68,24 +87,54 @@ export function Permissions() {
     } catch (error) {
       console.warn('Failed to fetch roles', error)
     }
-  }
+  }, [searchParams])
 
   useEffect(() => {
     const fetchInitialData = async () => {
       await fetchRoles()
       try {
-        const allPerms = await getAllPermissions()
+        const allPerms = (await getAllPermissions()) as DbPermission[]
         const permsMap: Record<string, number> = {}
-        allPerms.forEach((p: any) => {
-          permsMap[p.permission_type] = p.permission_id
+        allPerms.forEach((p) => {
+          if (p.permission_type) {
+            permsMap[p.permission_type] = p.permission_id
+          }
         })
         setMasterPermissionsMap(permsMap)
+
+        // Dynamically group permissions by module to build permissionsList
+        const moduleMap: Record<string, ('add' | 'change' | 'delete' | 'view')[]> = {}
+        allPerms.forEach((p) => {
+          const parsed = parsePermissionType(p.permission_type)
+          if (parsed) {
+            const { modCode, action } = parsed
+            if (!moduleMap[modCode]) {
+              moduleMap[modCode] = []
+            }
+            if (!moduleMap[modCode].includes(action)) {
+              moduleMap[modCode].push(action)
+            }
+          }
+        })
+
+        const dynamicList: PermissionRow[] = Object.keys(moduleMap).map(modName => ({
+          code: modName,
+          isParent: false,
+          actions: moduleMap[modName]
+        }))
+
+        // Sort modules alphabetically so they display consistently
+        dynamicList.sort((a, b) => a.code.localeCompare(b.code))
+
+        if (dynamicList.length > 0) {
+          setPermissionsList(dynamicList)
+        }
       } catch (e) {
         console.warn('Failed to fetch master permissions', e)
       }
     }
     fetchInitialData()
-  }, [searchParams])
+  }, [searchParams, fetchRoles])
   
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
@@ -101,19 +150,22 @@ export function Permissions() {
     if (!activeRole) return
 
     const initialPerms: RolePermissions = {}
-    const backendPerms = activeRole.permissions || []
+    const backendPerms = (activeRole.permissions || []) as unknown as DbPermission[]
 
-    backendPerms.forEach((p: any) => {
-      const parts = p.permission_type?.split(':')
-      if (parts && parts.length === 2) {
-        const module = parts[0]
-        const action = parts[1] as 'add' | 'change' | 'delete' | 'view'
-        if (!initialPerms[module]) initialPerms[module] = {}
-        initialPerms[module][action] = true
+    backendPerms.forEach((p) => {
+      const parsed = parsePermissionType(p.permission_type)
+      if (parsed) {
+        const { modCode, action } = parsed
+        if (!initialPerms[modCode]) initialPerms[modCode] = {}
+        initialPerms[modCode][action] = true
       }
     })
 
-    setLocalPermissions(initialPerms)
+    // Wrap in setTimeout to avoid calling setState synchronously inside the effect body
+    const timer = setTimeout(() => {
+      setLocalPermissions(initialPerms)
+    }, 0)
+    return () => clearTimeout(timer)
   }, [selectedRole, apiRolesList])
 
   const showToast = (message: string) => {
@@ -148,24 +200,22 @@ export function Permissions() {
     const row = permissionsList.find((p) => p.code === rowCode)
     if (!row) return
 
-    // Set checkboxes for this row
-    updatedPerms[rowCode] = {
-      add: turnOn,
-      change: turnOn,
-      delete: turnOn,
-      view: turnOn,
-    }
+    // Set checkboxes for this row based on supported actions
+    const rowPerms: PermissionActions = {}
+    row.actions.forEach((act) => {
+      rowPerms[act] = turnOn
+    })
+    updatedPerms[rowCode] = rowPerms
 
     // If it's a parent, also update all its children
     if (row.isParent) {
       const children = permissionsList.filter((p) => p.parentId === rowCode)
       children.forEach((child) => {
-        updatedPerms[child.code] = {
-          add: turnOn,
-          change: turnOn,
-          delete: turnOn,
-          view: turnOn,
-        }
+        const childPerms: PermissionActions = {}
+        child.actions.forEach((act) => {
+          childPerms[act] = turnOn
+        })
+        updatedPerms[child.code] = childPerms
       })
     }
 
@@ -174,8 +224,10 @@ export function Permissions() {
 
   // Helper to determine if a row is fully checked
   const isRowAllChecked = (rowCode: string) => {
+    const row = permissionsList.find((p) => p.code === rowCode)
+    if (!row) return false
     const perms = localPermissions[rowCode] || {}
-    return !!(perms.add && perms.change && perms.delete && perms.view)
+    return row.actions.every((act) => !!perms[act])
   }
 
   // Calculate dynamic stats
@@ -203,12 +255,12 @@ export function Permissions() {
     if (!activeRole) return
 
     const desiredPermStrings: string[] = []
-    Object.keys(localPermissions).forEach(module => {
-      const perms = localPermissions[module]
+    Object.keys(localPermissions).forEach(modName => {
+      const perms = localPermissions[modName]
       if (perms) {
         Object.keys(perms).forEach(action => {
           if (perms[action as 'add' | 'change' | 'delete' | 'view']) {
-            desiredPermStrings.push(`${module}:${action}`)
+            desiredPermStrings.push(`${modName}_${action}`)
           }
         })
       }
@@ -218,9 +270,9 @@ export function Permissions() {
       .map(str => masterPermissionsMap[str])
       .filter(id => id !== undefined)
 
-    const currentBackendPerms = activeRole.permissions || []
+    const currentBackendPerms = (activeRole.permissions || []) as unknown as DbPermission[]
     const currentIds = currentBackendPerms
-      .map((p: any) => p.permission_id)
+      .map((p) => p.permission_id)
       .filter((id: number | undefined) => id !== undefined)
 
     const idsToAssign = desiredIds.filter(id => !currentIds.includes(id))
@@ -248,15 +300,14 @@ export function Permissions() {
     if (!activeRole) return
 
     const initialPerms: RolePermissions = {}
-    const backendPerms = activeRole.permissions || []
+    const backendPerms = (activeRole.permissions || []) as unknown as DbPermission[]
 
-    backendPerms.forEach((p: any) => {
-      const parts = p.permission_type?.split(':')
-      if (parts && parts.length === 2) {
-        const module = parts[0]
-        const action = parts[1] as 'add' | 'change' | 'delete' | 'view'
-        if (!initialPerms[module]) initialPerms[module] = {}
-        initialPerms[module][action] = true
+    backendPerms.forEach((p) => {
+      const parsed = parsePermissionType(p.permission_type)
+      if (parsed) {
+        const { modCode, action } = parsed
+        if (!initialPerms[modCode]) initialPerms[modCode] = {}
+        initialPerms[modCode][action] = true
       }
     })
 
@@ -426,58 +477,74 @@ export function Permissions() {
 
                         {/* Add Checkbox */}
                         <td className="px-6 py-4 text-center">
-                          <div className="flex justify-center">
-                            <input
-                              type="checkbox"
-                              checked={perms.add || false}
-                              onChange={(e) =>
-                                handleCheckboxChange(row.code, 'add', e.target.checked)
-                              }
-                              className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
-                            />
-                          </div>
+                          {row.actions.includes('add') ? (
+                            <div className="flex justify-center">
+                              <input
+                                type="checkbox"
+                                checked={perms.add || false}
+                                onChange={(e) =>
+                                  handleCheckboxChange(row.code, 'add', e.target.checked)
+                                }
+                                className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-ink-soft opacity-30 font-medium">-</span>
+                          )}
                         </td>
 
                         {/* Change Checkbox */}
                         <td className="px-6 py-4 text-center">
-                          <div className="flex justify-center">
-                            <input
-                              type="checkbox"
-                              checked={perms.change || false}
-                              onChange={(e) =>
-                                handleCheckboxChange(row.code, 'change', e.target.checked)
-                              }
-                              className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
-                            />
-                          </div>
+                          {row.actions.includes('change') ? (
+                            <div className="flex justify-center">
+                              <input
+                                type="checkbox"
+                                checked={perms.change || false}
+                                onChange={(e) =>
+                                  handleCheckboxChange(row.code, 'change', e.target.checked)
+                                }
+                                className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-ink-soft opacity-30 font-medium">-</span>
+                          )}
                         </td>
 
                         {/* Delete Checkbox */}
                         <td className="px-6 py-4 text-center">
-                          <div className="flex justify-center">
-                            <input
-                              type="checkbox"
-                              checked={perms.delete || false}
-                              onChange={(e) =>
-                                handleCheckboxChange(row.code, 'delete', e.target.checked)
-                              }
-                              className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
-                            />
-                          </div>
+                          {row.actions.includes('delete') ? (
+                            <div className="flex justify-center">
+                              <input
+                                type="checkbox"
+                                checked={perms.delete || false}
+                                onChange={(e) =>
+                                  handleCheckboxChange(row.code, 'delete', e.target.checked)
+                                }
+                                className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-ink-soft opacity-30 font-medium">-</span>
+                          )}
                         </td>
 
                         {/* View Checkbox */}
                         <td className="px-6 py-4 text-center">
-                          <div className="flex justify-center">
-                            <input
-                              type="checkbox"
-                              checked={perms.view || false}
-                              onChange={(e) =>
-                                handleCheckboxChange(row.code, 'view', e.target.checked)
-                              }
-                              className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
-                            />
-                          </div>
+                          {row.actions.includes('view') ? (
+                            <div className="flex justify-center">
+                              <input
+                                type="checkbox"
+                                checked={perms.view || false}
+                                onChange={(e) =>
+                                  handleCheckboxChange(row.code, 'view', e.target.checked)
+                                }
+                                className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-ink-soft opacity-30 font-medium">-</span>
+                          )}
                         </td>
                       </tr>
                     )
