@@ -19,6 +19,7 @@ import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
 import { useUserStore } from '@/store/user-store'
 import { staffLogin } from '@/lib/api/login'
+import { getStaffPermissions } from '@/lib/api/staff'
 
 const decodeJwt = (token: string) => {
   try {
@@ -41,7 +42,7 @@ type Role = 'Catering Manager' | 'Inventory Manager'
 
 export function Login() {
   const router = useRouter()
-  const { login } = useUserStore()
+  const { login, setPermissions } = useUserStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -76,7 +77,17 @@ export function Login() {
         staffName = namePart.charAt(0).toUpperCase() + namePart.slice(1)
       }
 
+      // Store the user first so the token is persisted
       login(email, staffRole, data.access_token, staffId, staffName)
+
+      // Then fetch and store their role-based permissions in the background.
+      // We don't block navigation on this — the Layout handles a loading state.
+      if (staffId) {
+        getStaffPermissions(staffId)
+          .then((perms) => setPermissions(perms))
+          .catch((err) => console.warn('Could not load staff permissions:', err))
+      }
+
       router.push('/dashboard')
     } catch (err: any) {
       setError(err.message || 'An error occurred during authentication.')

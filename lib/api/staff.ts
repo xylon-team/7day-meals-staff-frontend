@@ -236,3 +236,46 @@ export const removeStaffRole = async (staffId: number | string, roleId: number):
     console.warn(`Failed to remove role ${roleId} from staff ${staffId}`, error);
   }
 };
+
+/**
+ * Fetches all roles assigned to a staff member and returns a deduplicated,
+ * flat list of permission_type strings (e.g. ["inventory_item_add", "supplier_view"]).
+ *
+ * Uses the admin-token workaround because GET /staff/:id/role is AdminJwtAuthGuard-protected.
+ */
+export const getStaffPermissions = async (staffId: number | string): Promise<string[]> => {
+  try {
+    const adminToken = await getAdminToken();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (adminToken) {
+      headers['Authorization'] = `Bearer ${adminToken}`;
+    }
+
+    const response = await fetch(`${API_URL}/staff/${staffId}/role`, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      console.warn(`Failed to fetch staff roles for id ${staffId}: ${response.status}`);
+      return [];
+    }
+
+    const roles: any[] = await response.json();
+
+    // Collect all permission_type strings across all roles, deduplicating with a Set
+    const permSet = new Set<string>();
+    for (const role of roles) {
+      const rolePermissions: any[] = role.role_permissions ?? [];
+      for (const rp of rolePermissions) {
+        const pType: string | undefined = rp.permission?.permission_type;
+        if (pType) permSet.add(pType);
+      }
+    }
+
+    return Array.from(permSet);
+  } catch (error) {
+    console.warn(`Error fetching permissions for staff ${staffId}:`, error);
+    return [];
+  }
+};

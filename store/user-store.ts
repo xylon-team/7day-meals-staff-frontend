@@ -10,6 +10,12 @@ export interface User {
   role: Role
   accessToken?: string
   phone?: string
+  /**
+   * Flat list of permission_type strings fetched from the backend after login.
+   * e.g. ["inventory_item_add", "inventory_item_view", "supplier_view"]
+   * Undefined means permissions haven't been loaded yet (treat as no restrictions for Admins).
+   */
+  permissions?: string[]
 }
 
 interface UserStoreState {
@@ -17,6 +23,7 @@ interface UserStoreState {
   login: (username: string, role: string, accessToken?: string, id?: number | string, name?: string) => void
   logout: () => void
   updateProfile: (name: string, username: string, phone?: string) => void
+  setPermissions: (permissions: string[]) => void
 }
 
 export const useUserStore = create<UserStoreState>()(
@@ -49,6 +56,12 @@ export const useUserStore = create<UserStoreState>()(
               username,
               phone: phone !== undefined ? phone : state.user.phone,
             }
+            : null,
+        })),
+      setPermissions: (permissions: string[]) =>
+        set((state) => ({
+          user: state.user
+            ? { ...state.user, permissions }
             : null,
         })),
     }),
