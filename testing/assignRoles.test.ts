@@ -76,7 +76,7 @@ async function selectRoleByName(driver: WebDriver, roleName: string): Promise<bo
     const select = await driver.findElement(By.css('select'));
     const options = await select.findElements(By.css('option'));
     for (let i = 0; i < options.length; i++) {
-        if ((await options[i].getText()) === roleName) {
+        if ((await options[i].getText()).trim() === roleName.trim()) {
             await driver.executeScript(
                 `const s = arguments[0]; const i = arguments[1];
                  const vs = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
@@ -227,6 +227,7 @@ async function assignRolesTest() {
         console.log("Edit User and Change Role");
         if (!userRow) { console.log("❌ TC03 Skipped"); return; }
         await clickEditButtonForRow(driver, userRow);
+        await driver.sleep(500);
         const otherRole = availableRoles.find(r => r !== selectedRole) || availableRoles[0];
         await selectRoleByName(driver, otherRole);
         console.log(`   Changed role to: ${otherRole}`);
