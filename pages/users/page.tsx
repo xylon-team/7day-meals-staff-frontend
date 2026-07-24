@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Users as UsersIcon,
@@ -15,35 +15,47 @@ import {
   AlertTriangle,
   ChevronDown,
 } from 'lucide-react'
-import { useStore, RoleItem, UserItem } from '@/app/store'
+import { useStore, UserItem } from '@/app/store'
+import { getRoles, createRole, updateRole as updateRoleApi, deleteRole as deleteRoleApi } from '@/lib/api/roles'
+import { Role } from '@/lib/types/roles'
+import { getStaff, createStaff, updateStaff as updateStaffApi, deleteStaff as deleteStaffApi, assignStaffRole, removeStaffRole } from '@/lib/api/staff'
+import { Staff, StaffStatus } from '@/lib/types/staff'
 import { Badge } from '@/components/Badge'
 import { Button } from '@/components/Button'
 import { Card, CardContent } from '@/components/Card'
 import { Input } from '@/components/Input'
 
-// List of all permissions to compute dynamic counts
-const permissionsList = [
-  'meal_management', 'view_meals', 'create_meals', 'edit_meals', 'delete_meals',
-  'order_management', 'view_orders', 'update_order_status', 'cancel_order',
-  'inventory_management', 'view_inventory', 'add_inventory',
-  'staff_management', 'view_staff', 'manage_salary',
-  'view_reports', 'export_reports',
-  'view_logs', 'manage_settings', 'manage_users'
-]
+
 
 export function Users() {
   const router = useRouter()
-  const {
-    rolesList,
-    usersList,
-    permissions,
-    addRole,
-    updateRole,
-    deleteRole,
-    addUser,
-    updateUser,
-    deleteUser,
-  } = useStore()
+  const [apiRolesList, setApiRolesList] = useState<Role[]>([])
+  const [apiStaffList, setApiStaffList] = useState<Staff[]>([])
+
+  useEffect(() => {
+    fetchRoles()
+    fetchStaff()
+  }, [])
+
+  const fetchStaff = async () => {
+    try {
+      const staff = await getStaff()
+      setApiStaffList(staff)
+    } catch (error) {
+      console.warn('Fetch error:', error)
+      showToast('Failed to fetch staff users')
+    }
+  }
+
+  const fetchRoles = async () => {
+    try {
+      const roles = await getRoles(true)
+      setApiRolesList(roles)
+    } catch (error) {
+      console.warn('Fetch error:', error)
+      showToast('Failed to fetch roles')
+    }
+  }
 
   // Search input query
   const [searchQuery, setSearchQuery] = useState('')
@@ -53,12 +65,12 @@ export function Users() {
 
   // Modals state
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false)
-  const [roleEditing, setRoleEditing] = useState<RoleItem | null>(null)
+  const [roleEditing, setRoleEditing] = useState<Role | null>(null)
   const [roleName, setRoleName] = useState('')
   const [roleDescription, setRoleDescription] = useState('')
 
   const [isUserModalOpen, setIsUserModalOpen] = useState(false)
-  const [userEditing, setUserEditing] = useState<UserItem | null>(null)
+  const [userEditing, setUserEditing] = useState<Staff | null>(null)
   const [userFirstName, setUserFirstName] = useState('')
   const [userLastName, setUserLastName] = useState('')
   const [userPhone, setUserPhone] = useState('+94')
@@ -66,11 +78,12 @@ export function Users() {
   const [userPassword, setUserPassword] = useState('')
   const [userConfirmPassword, setUserConfirmPassword] = useState('')
   const [userRole, setUserRole] = useState('')
-  const [userActive, setUserActive] = useState(true)
+  const [userActive, setUserActive] = useState<StaffStatus>(StaffStatus.ACTIVE)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Delete Confirmation Modals state
-  const [deleteRoleConfirm, setDeleteRoleConfirm] = useState<string | null>(null)
-  const [deleteUserConfirm, setDeleteUserConfirm] = useState<string | null>(null)
+  const [deleteRoleConfirm, setDeleteRoleConfirm] = useState<{id: number, name: string} | null>(null)
+  const [deleteUserConfirm, setDeleteUserConfirm] = useState<number | null>(null)
 
   const showToast = (message: string) => {
     setToastMessage(message)
@@ -79,27 +92,7 @@ export function Users() {
     }, 3000)
   }
 
-  // Calculate dynamic count of checkboxes checked for a role
-  const getPermissionsCount = (roleName: string) => {
-    const rolePerms = permissions[roleName] || {}
-    let count = 0
-    permissionsList.forEach((code) => {
-      const actions = rolePerms[code] || {}
-      if (actions.add) count++
-      if (actions.change) count++
-      if (actions.delete) count++
-      if (actions.view) count++
-    })
 
-    // To align closely with the mockup numbers initially:
-    // Admin mock = 45, Catering Mgr mock = 24, Inventory Mgr mock = 18
-    // If they edit them, we show the live updated counts!
-    if (roleName === 'Admin' && count === 80) return 45
-    if (roleName === 'Catering Manager' && count === 27) return 24
-    if (roleName === 'Inventory Manager' && count === 19) return 18
-
-    return count
-  }
 
   const getRoleBadgeVariant = (roleName: string) => {
     if (roleName === 'Admin') return 'info'
@@ -109,17 +102,17 @@ export function Users() {
   }
 
   // Filter users by search query
-  const filteredUsers = usersList.filter(
+  const filteredUsers = apiStaffList.filter(
     (u) =>
-      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase())
+      `${u.fname} ${u.lname}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (u.email || '').toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   // Handlers for Roles Modals
-  const openRoleModal = (role: RoleItem | null = null) => {
+  const openRoleModal = (role: Role | null = null) => {
     if (role) {
       setRoleEditing(role)
-      setRoleName(role.name)
+      setRoleName(role.role)
       setRoleDescription(role.description)
     } else {
       setRoleEditing(null)
@@ -129,59 +122,58 @@ export function Users() {
     setIsRoleModalOpen(true)
   }
 
-  const handleRoleSubmit = (e: React.FormEvent) => {
+  const handleRoleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!roleName.trim()) return
 
-    if (roleEditing) {
-      // System roles cannot be renamed or modified
-      if (['Admin', 'Catering Manager', 'Inventory Manager'].includes(roleEditing.name)) {
-        showToast('System roles cannot be modified.')
-        setIsRoleModalOpen(false)
-        return
+    try {
+      if (roleEditing) {
+        await updateRoleApi(roleEditing.id, {
+          role: roleName,
+          description: roleDescription,
+        })
+        showToast(`Role "${roleName}" updated successfully!`)
+      } else {
+        // Check for duplicate names
+        if (apiRolesList.some((r) => r.role.toLowerCase() === roleName.toLowerCase())) {
+          showToast('Role with this name already exists.')
+          return
+        }
+        await createRole({
+          role: roleName,
+          description: roleDescription,
+        })
+        showToast(`Role "${roleName}" created successfully!`)
       }
-      updateRole(roleEditing.name, {
-        name: roleName,
-        description: roleDescription,
-      })
-      showToast(`Role "${roleName}" updated successfully!`)
-    } else {
-      // Check for duplicate names
-      if (rolesList.some((r) => r.name.toLowerCase() === roleName.toLowerCase())) {
-        showToast('Role with this name already exists.')
-        return
-      }
-      addRole({
-        name: roleName,
-        description: roleDescription,
-      })
-      showToast(`Role "${roleName}" created successfully!`)
+      await fetchRoles()
+      setIsRoleModalOpen(false)
+    } catch (error: any) {
+      showToast(error.message || 'Failed to save role')
     }
-    setIsRoleModalOpen(false)
   }
 
-  const handleDeleteRole = (name: string) => {
-    if (['Admin', 'Catering Manager', 'Inventory Manager'].includes(name)) {
-      showToast('System roles cannot be deleted.')
+  const handleDeleteRole = async (id: number, name: string) => {
+    try {
+      await deleteRoleApi(id)
+      showToast(`Role "${name}" deleted.`)
       setDeleteRoleConfirm(null)
-      return
+      await fetchRoles()
+    } catch (error: any) {
+      showToast(error.message || 'Failed to delete role')
     }
-    deleteRole(name)
-    showToast(`Role "${name}" deleted.`)
-    setDeleteRoleConfirm(null)
   }
 
   // Handlers for Users Modals
-  const openUserModal = (user: UserItem | null = null) => {
+  const openUserModal = (user: Staff | null = null) => {
+    setErrors({})
     if (user) {
       setUserEditing(user)
-      const nameParts = (user.name || '').split(' ')
-      setUserFirstName(nameParts[0] || '')
-      setUserLastName(nameParts.slice(1).join(' ') || '')
-      setUserEmail(user.email)
-      setUserRole(user.role)
-      setUserActive(user.isActive)
-      setUserPhone(user.phone || '+94')
+      setUserFirstName(user.fname)
+      setUserLastName(user.lname)
+      setUserEmail(user.email || '')
+      setUserRole(user.role || apiRolesList[0]?.role || 'Admin')
+      setUserActive(user.status)
+      setUserPhone(user.phone_number || '+94')
       setUserPassword('')
       setUserConfirmPassword('')
     } else {
@@ -189,8 +181,8 @@ export function Users() {
       setUserFirstName('')
       setUserLastName('')
       setUserEmail('')
-      setUserRole(rolesList[0]?.name || 'Admin')
-      setUserActive(true)
+      setUserRole(apiRolesList[0]?.role || 'Admin')
+      setUserActive(StaffStatus.ACTIVE)
       setUserPhone('+94')
       setUserPassword('')
       setUserConfirmPassword('')
@@ -198,53 +190,164 @@ export function Users() {
     setIsUserModalOpen(true)
   }
 
-  const handleUserSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!userFirstName.trim() || !userEmail.trim()) return
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {}
 
-    if (userPassword !== userConfirmPassword) {
-      showToast('Passwords do not match.')
+    // First Name validation
+    if (!userFirstName.trim()) {
+      newErrors.firstName = 'First name is required'
+    } else if (!/^[A-Za-z]+$/.test(userFirstName.trim())) {
+      newErrors.firstName = 'First name must contain only letters'
+    }
+
+    // Last Name validation
+    if (!userLastName.trim()) {
+      newErrors.lastName = 'Last name is required'
+    } else if (!/^[A-Za-z]+$/.test(userLastName.trim())) {
+      newErrors.lastName = 'Last name must contain only letters'
+    }
+
+    // Phone validation
+    const phoneTrimmed = userPhone.trim()
+    if (!phoneTrimmed) {
+      newErrors.phone = 'Phone number is required'
+    } else {
+      // Sri Lankan phone number formats (Accept +94XXXXXXXXX or 0XXXXXXXXX)
+      const phoneRegex = /^(?:\+94|0)?7[0-9]{8}$/
+      if (!phoneRegex.test(phoneTrimmed)) {
+        newErrors.phone = 'Enter a valid Sri Lankan phone number (e.g. +94771234567 or 0771234567)'
+      }
+    }
+
+    // Email validation
+    const emailTrimmed = userEmail.trim()
+    if (!emailTrimmed) {
+      newErrors.email = 'Email address is required'
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(emailTrimmed)) {
+        newErrors.email = 'Please enter a valid email address'
+      }
+    }
+
+    // Password validation (only required for new user, or if password field is filled during edit)
+    if (!userEditing) {
+      if (!userPassword) {
+        newErrors.password = 'Password is required'
+      } else {
+        if (userPassword.length < 8) {
+          newErrors.password = 'Password must be at least 8 characters long'
+        } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/.test(userPassword)) {
+          newErrors.password = 'Password must contain at least one uppercase, lowercase, number, and special character'
+        }
+      }
+
+      if (!userConfirmPassword) {
+        newErrors.confirmPassword = 'Confirm password is required'
+      } else if (userPassword !== userConfirmPassword) {
+        newErrors.confirmPassword = 'Passwords do not match'
+      }
+    } else {
+      // For editing, password is optional, but if entered, it must meet constraints
+      if (userPassword) {
+        if (userPassword.length < 8) {
+          newErrors.password = 'Password must be at least 8 characters long'
+        } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/.test(userPassword)) {
+          newErrors.password = 'Password must contain at least one uppercase, lowercase, number, and special character'
+        }
+
+        if (!userConfirmPassword) {
+          newErrors.confirmPassword = 'Confirm password is required'
+        } else if (userPassword !== userConfirmPassword) {
+          newErrors.confirmPassword = 'Passwords do not match'
+        }
+      }
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!validateForm()) {
+      showToast('Please fix the validation errors in the form.')
       return
     }
 
     const fullName = `${userFirstName.trim()} ${userLastName.trim()}`.trim()
 
-    if (userEditing) {
-      updateUser(userEditing.id, {
-        name: fullName,
-        email: userEmail,
-        role: userRole,
-        isActive: userActive,
-        phone: userPhone,
-      })
-      showToast(`User "${fullName}" updated successfully!`)
-    } else {
-      // Check duplicate email
-      if (usersList.some((u) => u.email.toLowerCase() === userEmail.toLowerCase())) {
-        showToast('User with this email already exists.')
-        return
+    try {
+      if (userEditing) {
+        await updateStaffApi(userEditing.id, {
+          fname: userFirstName.trim(),
+          lname: userLastName.trim(),
+          phone_number: userPhone.trim(),
+          status: userActive,
+          email: userEmail.trim(),
+          ...(userPassword ? { staff_password: userPassword } : {})
+        })
+
+        // If the role has changed, update it in the database
+        if (userEditing.role !== userRole) {
+          if (userEditing.role) {
+            const oldRoleObj = apiRolesList.find((r) => r.role === userEditing.role)
+            if (oldRoleObj) {
+              await removeStaffRole(userEditing.id, oldRoleObj.id)
+            }
+          }
+          const newRoleObj = apiRolesList.find((r) => r.role === userRole)
+          if (newRoleObj) {
+            await assignStaffRole(userEditing.id, newRoleObj.id)
+          }
+        }
+
+        showToast(`User "${fullName}" updated successfully!`)
+      } else {
+        const newStaff = await createStaff({
+          fname: userFirstName.trim(),
+          lname: userLastName.trim(),
+          phone_number: userPhone.trim(),
+          status: userActive,
+          email: userEmail.trim(),
+          staff_password: userPassword
+        })
+
+        // Assign the selected role to the newly created staff member
+        const selectedRoleObj = apiRolesList.find((r) => r.role === userRole)
+        if (selectedRoleObj && newStaff && newStaff.id) {
+          await assignStaffRole(newStaff.id, selectedRoleObj.id)
+        }
+
+        showToast(`User "${fullName}" created successfully!`)
       }
-      addUser({
-        name: fullName,
-        email: userEmail,
-        role: userRole,
-        isActive: userActive,
-        phone: userPhone,
-      })
-      showToast(`User "${fullName}" created successfully!`)
+      await fetchStaff()
+      setIsUserModalOpen(false)
+    } catch (error: any) {
+      showToast(error.message || 'Failed to save user')
     }
-    setIsUserModalOpen(false)
   }
 
-  const handleDeleteUser = (id: string, name: string) => {
-    deleteUser(id)
-    showToast(`User "${name}" deleted.`)
-    setDeleteUserConfirm(null)
+  const handleDeleteUser = async (id: number, name: string) => {
+    try {
+      await deleteStaffApi(id)
+      showToast(`User "${name}" deleted.`)
+      setDeleteUserConfirm(null)
+      await fetchStaff()
+    } catch (error: any) {
+      showToast(error.message || 'Failed to delete user')
+    }
   }
 
-  const toggleUserStatus = (id: string, currentStatus: boolean, name: string) => {
-    updateUser(id, { isActive: !currentStatus })
-    showToast(`User "${name}" is now ${!currentStatus ? 'Active' : 'Inactive'}.`)
+  const toggleUserStatus = async (id: number, currentStatus: StaffStatus, name: string) => {
+    try {
+      const newStatus = currentStatus === StaffStatus.ACTIVE ? StaffStatus.INACTIVE : StaffStatus.ACTIVE
+      await updateStaffApi(id, { status: newStatus })
+      showToast(`User "${name}" is now ${newStatus === StaffStatus.ACTIVE ? 'Active' : 'Inactive'}.`)
+      await fetchStaff()
+    } catch (error: any) {
+      showToast(error.message || 'Failed to change user status')
+    }
   }
 
   return (
@@ -300,14 +403,13 @@ export function Users() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line bg-card">
-                {rolesList.map((role) => {
-                  const isSystemRole = ['Admin', 'Catering Manager', 'Inventory Manager'].includes(role.name)
+                {apiRolesList.map((role) => {
                   return (
-                    <tr key={role.name} className="hover:bg-canvas/30 transition-colors">
+                    <tr key={role.id} className="hover:bg-canvas/30 transition-colors">
                       {/* Role Badge */}
                       <td className="px-6 py-5 whitespace-nowrap">
-                        <Badge variant={getRoleBadgeVariant(role.name)} className="px-3 py-1 text-sm font-semibold rounded-md">
-                          {role.name}
+                        <Badge variant={getRoleBadgeVariant(role.role)} className="px-3 py-1 text-sm font-semibold rounded-md">
+                          {role.role}
                         </Badge>
                       </td>
 
@@ -318,14 +420,14 @@ export function Users() {
 
                       {/* Permissions Count */}
                       <td className="px-6 py-5 font-bold text-ink text-sm">
-                        {getPermissionsCount(role.name)}
+                        {role.permissions?.length || 0}
                       </td>
 
                       {/* Actions */}
                       <td className="px-6 py-5 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-3.5">
                           <button
-                            onClick={() => router.push(`/roles?role=${encodeURIComponent(role.name)}`)}
+                            onClick={() => router.push(`/roles?role=${encodeURIComponent(role.role)}`)}
                             className="text-ink-soft hover:text-primary transition-colors cursor-pointer"
                             title="Manage Permissions"
                           >
@@ -333,21 +435,15 @@ export function Users() {
                           </button>
                           <button
                             onClick={() => openRoleModal(role)}
-                            disabled={isSystemRole}
-                            className={`transition-colors cursor-pointer ${
-                              isSystemRole ? 'text-ink-soft/30 cursor-not-allowed' : 'text-ink-soft hover:text-ink'
-                            }`}
-                            title={isSystemRole ? 'System roles cannot be edited' : 'Edit Role'}
+                            className="text-ink-soft hover:text-ink transition-colors cursor-pointer"
+                            title="Edit Role"
                           >
                             <Edit2 size={16} />
                           </button>
                           <button
-                            onClick={() => setDeleteRoleConfirm(role.name)}
-                            disabled={isSystemRole}
-                            className={`transition-colors cursor-pointer ${
-                              isSystemRole ? 'text-ink-soft/30 cursor-not-allowed' : 'text-danger-fg hover:text-danger-fg/80'
-                            }`}
-                            title={isSystemRole ? 'System roles cannot be deleted' : 'Delete Role'}
+                            onClick={() => setDeleteRoleConfirm({id: role.id, name: role.role})}
+                            className="text-danger-fg hover:text-danger-fg/80 transition-colors cursor-pointer"
+                            title="Delete Role"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -407,7 +503,7 @@ export function Users() {
                     <tr key={user.id} className="hover:bg-canvas/30 transition-colors">
                       {/* Name */}
                       <td className="px-6 py-4 font-bold text-ink text-sm">
-                        {user.name}
+                        {`${user.fname} ${user.lname}`}
                       </td>
 
                       {/* Email */}
@@ -417,8 +513,8 @@ export function Users() {
 
                       {/* Role Badge */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge variant={getRoleBadgeVariant(user.role)} className="px-2.5 py-0.5 text-xs font-semibold">
-                          {user.role}
+                        <Badge variant={getRoleBadgeVariant(user.role || 'User')} className="px-2.5 py-0.5 text-xs font-semibold">
+                          {user.role || 'User'}
                         </Badge>
                       </td>
 
@@ -426,14 +522,14 @@ export function Users() {
                       <td className="px-6 py-4 text-center">
                         <div className="flex justify-center items-center">
                           <button
-                            onClick={() => toggleUserStatus(user.id, user.isActive, user.name)}
+                            onClick={() => toggleUserStatus(user.id, user.status, `${user.fname} ${user.lname}`)}
                             className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
-                              user.isActive ? 'bg-[#0a5c60]' : 'bg-line'
+                              user.status === StaffStatus.ACTIVE ? 'bg-[#0a5c60]' : 'bg-line'
                             }`}
                           >
                             <span
                               className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                user.isActive ? 'translate-x-5' : 'translate-x-0'
+                                user.status === StaffStatus.ACTIVE ? 'translate-x-5' : 'translate-x-0'
                               }`}
                             />
                           </button>
@@ -550,7 +646,7 @@ export function Users() {
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleUserSubmit}>
+            <form onSubmit={handleUserSubmit} noValidate>
               <CardContent className="p-6 space-y-5">
                 {/* First Name & Last Name */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -561,9 +657,14 @@ export function Users() {
                     <Input
                       type="text"
                       value={userFirstName}
-                      onChange={(e) => setUserFirstName(e.target.value)}
-                      placeholder=""
-                      required
+                      onChange={(e) => {
+                        setUserFirstName(e.target.value)
+                        if (errors.firstName) {
+                          setErrors((prev) => ({ ...prev, firstName: '' }))
+                        }
+                      }}
+                      error={errors.firstName}
+                      placeholder="e.g. John"
                       className="h-11 border-line bg-card rounded-lg"
                     />
                   </div>
@@ -574,9 +675,14 @@ export function Users() {
                     <Input
                       type="text"
                       value={userLastName}
-                      onChange={(e) => setUserLastName(e.target.value)}
-                      placeholder=""
-                      required
+                      onChange={(e) => {
+                        setUserLastName(e.target.value)
+                        if (errors.lastName) {
+                          setErrors((prev) => ({ ...prev, lastName: '' }))
+                        }
+                      }}
+                      error={errors.lastName}
+                      placeholder="e.g. Doe"
                       className="h-11 border-line bg-card rounded-lg"
                     />
                   </div>
@@ -591,9 +697,14 @@ export function Users() {
                     <Input
                       type="text"
                       value={userPhone}
-                      onChange={(e) => setUserPhone(e.target.value)}
-                      placeholder=""
-                      required
+                      onChange={(e) => {
+                        setUserPhone(e.target.value)
+                        if (errors.phone) {
+                          setErrors((prev) => ({ ...prev, phone: '' }))
+                        }
+                      }}
+                      error={errors.phone}
+                      placeholder="e.g. +94771234567"
                       className="h-11 border-line bg-card rounded-lg"
                     />
                   </div>
@@ -608,9 +719,14 @@ export function Users() {
                   <Input
                     type="email"
                     value={userEmail}
-                    onChange={(e) => setUserEmail(e.target.value)}
-                    placeholder=""
-                    required
+                    onChange={(e) => {
+                      setUserEmail(e.target.value)
+                      if (errors.email) {
+                        setErrors((prev) => ({ ...prev, email: '' }))
+                      }
+                    }}
+                    error={errors.email}
+                    placeholder="e.g. john.doe@example.com"
                     className="h-11 border-line bg-card rounded-lg"
                   />
                 </div>
@@ -619,14 +735,19 @@ export function Users() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-sm font-medium text-[#2d3748] mb-2">
-                      Password
+                      Password {userEditing && <span className="text-xs text-ink-soft">(Optional)</span>}
                     </label>
                     <Input
                       type="password"
                       value={userPassword}
-                      onChange={(e) => setUserPassword(e.target.value)}
-                      placeholder=""
-                      required={!userEditing}
+                      onChange={(e) => {
+                        setUserPassword(e.target.value)
+                        if (errors.password) {
+                          setErrors((prev) => ({ ...prev, password: '' }))
+                        }
+                      }}
+                      error={errors.password}
+                      placeholder={userEditing ? "Leave blank to keep current" : "••••••••"}
                       className="h-11 border-line bg-card rounded-lg"
                     />
                   </div>
@@ -637,9 +758,14 @@ export function Users() {
                     <Input
                       type="password"
                       value={userConfirmPassword}
-                      onChange={(e) => setUserConfirmPassword(e.target.value)}
-                      placeholder=""
-                      required={!userEditing || !!userPassword}
+                      onChange={(e) => {
+                        setUserConfirmPassword(e.target.value)
+                        if (errors.confirmPassword) {
+                          setErrors((prev) => ({ ...prev, confirmPassword: '' }))
+                        }
+                      }}
+                      error={errors.confirmPassword}
+                      placeholder="••••••••"
                       className="h-11 border-line bg-card rounded-lg"
                     />
                   </div>
@@ -657,9 +783,9 @@ export function Users() {
                         onChange={(e) => setUserRole(e.target.value)}
                         className="w-full h-11 pl-3 pr-10 border border-line rounded-lg bg-card text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all cursor-pointer appearance-none"
                       >
-                        {rolesList.map((r) => (
-                          <option key={r.name} value={r.name}>
-                            {r.name}
+                        {apiRolesList.map((r) => (
+                          <option key={r.id} value={r.role}>
+                            {r.role}
                           </option>
                         ))}
                       </select>
@@ -674,12 +800,12 @@ export function Users() {
                     </label>
                     <div className="relative">
                       <select
-                        value={userActive ? 'Active' : 'Inactive'}
-                        onChange={(e) => setUserActive(e.target.value === 'Active')}
+                        value={userActive}
+                        onChange={(e) => setUserActive(e.target.value as StaffStatus)}
                         className="w-full h-11 pl-3 pr-10 border border-line rounded-lg bg-card text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all cursor-pointer appearance-none"
                       >
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
+                        <option value={StaffStatus.ACTIVE}>Active</option>
+                        <option value={StaffStatus.INACTIVE}>Inactive</option>
                       </select>
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-ink-soft">
                         <ChevronDown size={18} />
@@ -719,7 +845,7 @@ export function Users() {
               <div>
                 <h4 className="text-lg font-bold text-ink">Delete Role?</h4>
                 <p className="text-sm text-ink-soft mt-1">
-                  Are you sure you want to delete the role "{deleteRoleConfirm}"? This will also clear its permission settings.
+                  Are you sure you want to delete the role "{deleteRoleConfirm.name}"? This will also clear its permission settings.
                 </p>
               </div>
             </div>
@@ -737,7 +863,7 @@ export function Users() {
                 type="button"
                 variant="danger"
                 size="sm"
-                onClick={() => handleDeleteRole(deleteRoleConfirm)}
+                onClick={() => handleDeleteRole(deleteRoleConfirm.id, deleteRoleConfirm.name)}
                 className="cursor-pointer"
               >
                 Delete
@@ -777,8 +903,8 @@ export function Users() {
                 variant="danger"
                 size="sm"
                 onClick={() => {
-                  const user = usersList.find((u) => u.id === deleteUserConfirm)
-                  if (user) handleDeleteUser(user.id, user.name)
+                  const user = apiStaffList.find((u) => u.id === deleteUserConfirm)
+                  if (user) handleDeleteUser(user.id, `${user.fname} ${user.lname}`)
                 }}
                 className="cursor-pointer"
               >
@@ -791,3 +917,5 @@ export function Users() {
     </div>
   )
 }
+
+export default Users

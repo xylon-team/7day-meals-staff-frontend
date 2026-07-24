@@ -12,51 +12,92 @@ import {
   ChefHat,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 import { Badge } from '@/components/Badge'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
-import { useStore } from '@/app/store'
+import { useUserStore } from '@/store/user-store'
+import { staffLogin } from '@/lib/api/login'
+import { getStaffPermissions } from '@/lib/api/staff'
 
-type Role = 'Admin' | 'Catering Manager' | 'Inventory Manager'
+const decodeJwt = (token: string) => {
+  try {
+    const base64Url = token.split('.')[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(
+      window
+        .atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
+    return JSON.parse(jsonPayload)
+  } catch (e) {
+    return null
+  }
+}
+
+type Role = 'Catering Manager' | 'Inventory Manager'
 
 export function Login() {
   const router = useRouter()
-  const { login } = useStore()
+  const { login, setPermissions } = useUserStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
-    // Mock authentication based on provided credentials
-    if (email === 'admin' && password === 'Admin123') {
-      login(email, 'Admin')
+    setIsLoading(true)
+
+    try {
+      const data = await staffLogin({
+        email: email,
+        staff_password: password
+      })
+
+      const decoded = decodeJwt(data.access_token)
+      const staffId = decoded?.sub
+
+      let staffName = 'Staff Member'
+      let staffRole = 'Staff'
+
+      if (email.toLowerCase().includes('catering')) {
+        staffName = 'Catering Manager'
+        staffRole = 'Catering Manager'
+      } else if (email.toLowerCase().includes('inventory')) {
+        staffName = 'Inventory Manager'
+        staffRole = 'Inventory Manager'
+      } else {
+        const namePart = email.split('@')[0]
+        staffName = namePart.charAt(0).toUpperCase() + namePart.slice(1)
+      }
+
+      // Store the user first so the token is persisted
+      login(email, staffRole, data.access_token, staffId, staffName)
+
+      // Then fetch and store their role-based permissions in the background.
+      // We don't block navigation on this — the Layout handles a loading state.
+      if (staffId) {
+        getStaffPermissions(staffId)
+          .then((perms) => setPermissions(perms))
+          .catch((err) => console.warn('Could not load staff permissions:', err))
+      }
+
       router.push('/dashboard')
-    } else if (
-      email === 'catering@7daymeals.lk' &&
-      password === 'Catering@7DM2024'
-    ) {
-      login(email, 'Catering Manager')
-      router.push('/dashboard')
-    } else if (
-      email === 'inventory@7daymeals.lk' &&
-      password === 'Inventory@7DM2024'
-    ) {
-      login(email, 'Inventory Manager')
-      router.push('/dashboard')
-    } else {
-      setError('The email address or password you entered is incorrect. Please try again or reset your password if you have forgotten it.')
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during authentication.')
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const fillCredentials = (role: Role) => {
-    if (role === 'Admin') {
-      setEmail('admin@7daymeals.lk')
-      setPassword('Admin@7DM2024')
-    } else if (role === 'Catering Manager') {
+    if (role === 'Catering Manager') {
       setEmail('catering@7daymeals.lk')
       setPassword('Catering@7DM2024')
     } else if (role === 'Inventory Manager') {
@@ -136,12 +177,12 @@ export function Login() {
                 <label className="block text-sm font-medium text-ink">
                   Password
                 </label>
-                <a
-                  href="#"
+                <Link
+                  href="/forgot-password"
                   className="text-xs text-primary hover:text-primary-dark font-medium"
                 >
                   Forgot Password?
-                </a>
+                </Link>
               </div>
               <div className="relative">
                 <Input
@@ -182,9 +223,19 @@ export function Login() {
               </div>
             )}
 
-            <Button type="submit" className="w-full" size="lg">
-              Sign In
+            <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+              {isLoading ? 'Signing In...' : 'Sign In'}
             </Button>
+
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => router.push('/admin-login')}
+                className="text-sm font-medium text-primary hover:text-primary-dark transition-colors"
+              >
+                Login as Administrator &rarr;
+              </button>
+            </div>
           </form>
 
           <div className="mt-8 pt-6 border-t border-line">
@@ -192,12 +243,6 @@ export function Login() {
               Demo Accounts
             </p>
             <div className="flex flex-wrap justify-center gap-2">
-              <button
-                onClick={() => fillCredentials('Admin')}
-                className="hover:opacity-80 transition-opacity"
-              >
-                <Badge variant="info">Admin</Badge>
-              </button>
               <button
                 onClick={() => fillCredentials('Catering Manager')}
                 className="hover:opacity-80 transition-opacity"

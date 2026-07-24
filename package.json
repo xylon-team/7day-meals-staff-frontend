@@ -23,8 +23,11 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/selenium-webdriver": "^4.35.6",
+    "chromedriver": "^150.0.4",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
+    "selenium-webdriver": "^4.46.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

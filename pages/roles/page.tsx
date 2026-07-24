@@ -1,184 +1,141 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ChevronDown, Shield, Utensils, Save, Check } from 'lucide-react'
-import { useStore, Role, RolePermissions } from '@/app/store'
+import { ChevronDown, Save, Check } from 'lucide-react'
+import { useStore, RolePermissions, PermissionActions } from '@/app/store'
+import { Role } from '@/store/user-store'
+import { getRoles, getAllPermissions, assignRolePermissions, removeRolePermissions } from '@/lib/api/roles'
+import { Role as ApiRole } from '@/lib/types/roles'
 import { Badge } from '@/components/Badge'
 import { Button } from '@/components/Button'
 import { Card, CardContent } from '@/components/Card'
 
 interface PermissionRow {
   code: string
-  description: string
   isParent: boolean
   parentId?: string
   actions: ('add' | 'change' | 'delete' | 'view')[]
 }
 
-const permissionsList: PermissionRow[] = [
-  // Meal Management Module
-  {
-    code: 'meal_management',
-    description: 'Full access to meal management',
-    isParent: true,
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'view_meals',
-    description: 'Allows user to view meals list',
-    isParent: false,
-    parentId: 'meal_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'create_meals',
-    description: 'Allows user to create new meals',
-    isParent: false,
-    parentId: 'meal_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'edit_meals',
-    description: 'Allows user to edit meal details',
-    isParent: false,
-    parentId: 'meal_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'delete_meals',
-    description: 'Allows user to delete meals',
-    isParent: false,
-    parentId: 'meal_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-
-  // Order Management Module
-  {
-    code: 'order_management',
-    description: 'Full access to order management',
-    isParent: true,
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'view_orders',
-    description: 'Allows user to view orders',
-    isParent: false,
-    parentId: 'order_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'update_order_status',
-    description: 'Allows user to update order status',
-    isParent: false,
-    parentId: 'order_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'cancel_order',
-    description: 'Allows user to cancel orders',
-    isParent: false,
-    parentId: 'order_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-
-  // Inventory Module
-  {
-    code: 'inventory_management',
-    description: 'Full access to inventory management',
-    isParent: true,
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'view_inventory',
-    description: 'Allows user to view inventory',
-    isParent: false,
-    parentId: 'inventory_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'add_inventory',
-    description: 'Allows user to add inventory items',
-    isParent: false,
-    parentId: 'inventory_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-
-  // Staff Module
-  {
-    code: 'staff_management',
-    description: 'Full access to staff management',
-    isParent: true,
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'view_staff',
-    description: 'Allows user to view staff list',
-    isParent: false,
-    parentId: 'staff_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'manage_salary',
-    description: 'Allows user to manage salary records',
-    isParent: false,
-    parentId: 'staff_management',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-
-  // Reports Module
-  {
-    code: 'view_reports',
-    description: 'Allows user to view reports',
-    isParent: true,
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'export_reports',
-    description: 'Allows user to export reports',
-    isParent: false,
-    parentId: 'view_reports',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-
-  // Logs Module
-  {
-    code: 'view_logs',
-    description: 'Allows user to view system logs',
-    isParent: true,
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'manage_settings',
-    description: 'Allows user to manage system settings',
-    isParent: false,
-    parentId: 'view_logs',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
-  {
-    code: 'manage_users',
-    description: 'Allows user to manage system users',
-    isParent: false,
-    parentId: 'view_logs',
-    actions: ['add', 'change', 'delete', 'view'],
-  },
+const defaultPermissionsList: PermissionRow[] = [
+  { code: 'meal_item', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'meal_package', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'promotion', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'customer', isParent: false, actions: ['delete', 'view'] },
+  { code: 'orders', isParent: false, actions: ['change', 'delete', 'view'] },
+  { code: 'customer_feedback', isParent: false, actions: ['change', 'view'] },
+  { code: 'payment_record', isParent: false, actions: ['view'] },
+  { code: 'complaints', isParent: false, actions: ['change', 'view'] },
+  { code: 'meal_report', isParent: false, actions: ['add', 'view'] },
+  { code: 'logs', isParent: false, actions: ['view'] },
+  { code: 'supplier', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'inventory_item', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'low_stock_threshold', isParent: false, actions: ['add', 'change', 'view'] },
+  { code: 'restock', isParent: false, actions: ['add', 'view'] },
+  { code: 'restock_history', isParent: false, actions: ['view'] },
+  { code: 'supply_request', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'inventory_report', isParent: false, actions: ['add', 'view'] },
+  { code: 'system_settings', isParent: false, actions: ['change', 'view'] },
+  { code: 'permission_assign', isParent: false, actions: ['change', 'view'] },
+  { code: 'role', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'staff', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
+  { code: 'analysis_report', isParent: false, actions: ['add', 'view'] },
+  { code: 'recovery_account', isParent: false, actions: ['change', 'view'] },
 ]
+
+const parsePermissionType = (type: string) => {
+  if (!type) return null
+  const lastUnderscoreIndex = type.lastIndexOf('_')
+  if (lastUnderscoreIndex === -1) return null
+
+  const modCode = type.substring(0, lastUnderscoreIndex)
+  const action = type.substring(lastUnderscoreIndex + 1) as 'add' | 'change' | 'delete' | 'view'
+
+  if (!['add', 'change', 'delete', 'view'].includes(action)) return null
+  return { modCode, action }
+}
+
+
+interface DbPermission {
+  permission_id: number
+  permission_type: string
+}
 
 export function Permissions() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { permissions, updateRolePermissions } = useStore()
+  const { updateRolePermissions } = useStore()
 
   // Track the current role being edited
   const [selectedRole, setSelectedRole] = useState<Role>('Catering Manager')
+  const [apiRolesList, setApiRolesList] = useState<ApiRole[]>([])
+  const [masterPermissionsMap, setMasterPermissionsMap] = useState<Record<string, number>>({})
+  const [permissionsList, setPermissionsList] = useState<PermissionRow[]>(defaultPermissionsList)
 
-  // Set selectedRole from query param if present
-  useEffect(() => {
-    const roleParam = searchParams.get('role')
-    if (roleParam && permissions[roleParam]) {
-      setSelectedRole(roleParam)
+  const fetchRoles = useCallback(async () => {
+    try {
+      const data = await getRoles(true)
+      setApiRolesList(data)
+      
+      const roleParam = searchParams?.get('role')
+      if (roleParam && data.find(r => r.role === roleParam)) {
+        setSelectedRole(roleParam)
+      } else if (data.length > 0) {
+        setSelectedRole(prev => data.find(r => r.role === prev) ? prev : data[0].role)
+      }
+    } catch (error) {
+      console.warn('Failed to fetch roles', error)
     }
-  }, [searchParams, permissions])
+  }, [searchParams])
+
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      await fetchRoles()
+      try {
+        const allPerms = (await getAllPermissions()) as DbPermission[]
+        const permsMap: Record<string, number> = {}
+        allPerms.forEach((p) => {
+          if (p.permission_type) {
+            permsMap[p.permission_type] = p.permission_id
+          }
+        })
+        setMasterPermissionsMap(permsMap)
+
+        // Dynamically group permissions by module to build permissionsList
+        const moduleMap: Record<string, ('add' | 'change' | 'delete' | 'view')[]> = {}
+        allPerms.forEach((p) => {
+          const parsed = parsePermissionType(p.permission_type)
+          if (parsed) {
+            const { modCode, action } = parsed
+            if (!moduleMap[modCode]) {
+              moduleMap[modCode] = []
+            }
+            if (!moduleMap[modCode].includes(action)) {
+              moduleMap[modCode].push(action)
+            }
+          }
+        })
+
+        const dynamicList: PermissionRow[] = Object.keys(moduleMap).map(modName => ({
+          code: modName,
+          isParent: false,
+          actions: moduleMap[modName]
+        }))
+
+        // Sort modules alphabetically so they display consistently
+        dynamicList.sort((a, b) => a.code.localeCompare(b.code))
+
+        if (dynamicList.length > 0) {
+          setPermissionsList(dynamicList)
+        }
+      } catch (e) {
+        console.warn('Failed to fetch master permissions', e)
+      }
+    }
+    fetchInitialData()
+  }, [searchParams, fetchRoles])
+  
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
   // Local state for edits
@@ -189,9 +146,27 @@ export function Permissions() {
 
   // Load permissions when role changes
   useEffect(() => {
-    const rolePerms = permissions[selectedRole] || {}
-    setLocalPermissions(JSON.parse(JSON.stringify(rolePerms)))
-  }, [selectedRole, permissions])
+    const activeRole = apiRolesList.find(r => r.role === selectedRole)
+    if (!activeRole) return
+
+    const initialPerms: RolePermissions = {}
+    const backendPerms = (activeRole.permissions || []) as unknown as DbPermission[]
+
+    backendPerms.forEach((p) => {
+      const parsed = parsePermissionType(p.permission_type)
+      if (parsed) {
+        const { modCode, action } = parsed
+        if (!initialPerms[modCode]) initialPerms[modCode] = {}
+        initialPerms[modCode][action] = true
+      }
+    })
+
+    // Wrap in setTimeout to avoid calling setState synchronously inside the effect body
+    const timer = setTimeout(() => {
+      setLocalPermissions(initialPerms)
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [selectedRole, apiRolesList])
 
   const showToast = (message: string) => {
     setToastMessage(message)
@@ -225,24 +200,22 @@ export function Permissions() {
     const row = permissionsList.find((p) => p.code === rowCode)
     if (!row) return
 
-    // Set checkboxes for this row
-    updatedPerms[rowCode] = {
-      add: turnOn,
-      change: turnOn,
-      delete: turnOn,
-      view: turnOn,
-    }
+    // Set checkboxes for this row based on supported actions
+    const rowPerms: PermissionActions = {}
+    row.actions.forEach((act) => {
+      rowPerms[act] = turnOn
+    })
+    updatedPerms[rowCode] = rowPerms
 
     // If it's a parent, also update all its children
     if (row.isParent) {
       const children = permissionsList.filter((p) => p.parentId === rowCode)
       children.forEach((child) => {
-        updatedPerms[child.code] = {
-          add: turnOn,
-          change: turnOn,
-          delete: turnOn,
-          view: turnOn,
-        }
+        const childPerms: PermissionActions = {}
+        child.actions.forEach((act) => {
+          childPerms[act] = turnOn
+        })
+        updatedPerms[child.code] = childPerms
       })
     }
 
@@ -251,8 +224,10 @@ export function Permissions() {
 
   // Helper to determine if a row is fully checked
   const isRowAllChecked = (rowCode: string) => {
+    const row = permissionsList.find((p) => p.code === rowCode)
+    if (!row) return false
     const perms = localPermissions[rowCode] || {}
-    return !!(perms.add && perms.change && perms.delete && perms.view)
+    return row.actions.every((act) => !!perms[act])
   }
 
   // Calculate dynamic stats
@@ -275,68 +250,83 @@ export function Permissions() {
 
   const { checkedCount, totalCount } = calculateStats()
 
-  const handleSave = () => {
-    updateRolePermissions(selectedRole, localPermissions)
-    showToast(`Permissions updated successfully for ${selectedRole}!`)
+  const handleSave = async () => {
+    const activeRole = apiRolesList.find(r => r.role === selectedRole)
+    if (!activeRole) return
+
+    const desiredPermStrings: string[] = []
+    Object.keys(localPermissions).forEach(modName => {
+      const perms = localPermissions[modName]
+      if (perms) {
+        Object.keys(perms).forEach(action => {
+          if (perms[action as 'add' | 'change' | 'delete' | 'view']) {
+            desiredPermStrings.push(`${modName}_${action}`)
+          }
+        })
+      }
+    })
+
+    const desiredIds = desiredPermStrings
+      .map(str => masterPermissionsMap[str])
+      .filter(id => id !== undefined)
+
+    const currentBackendPerms = (activeRole.permissions || []) as unknown as DbPermission[]
+    const currentIds = currentBackendPerms
+      .map((p) => p.permission_id)
+      .filter((id: number | undefined) => id !== undefined)
+
+    const idsToAssign = desiredIds.filter(id => !currentIds.includes(id))
+    const idsToRemove = currentIds.filter(id => !desiredIds.includes(id))
+
+    try {
+      if (idsToAssign.length > 0) {
+        await assignRolePermissions(activeRole.id, idsToAssign)
+      }
+      if (idsToRemove.length > 0) {
+        await removeRolePermissions(activeRole.id, idsToRemove)
+      }
+      
+      showToast(`Permissions updated successfully for ${selectedRole}!`)
+      updateRolePermissions(selectedRole, localPermissions)
+      await fetchRoles()
+    } catch (e) {
+      showToast(`Failed to update permissions.`)
+      console.error(e)
+    }
   }
 
   const handleCancel = () => {
-    // Reset to store state
-    const rolePerms = permissions[selectedRole] || {}
-    setLocalPermissions(JSON.parse(JSON.stringify(rolePerms)))
+    const activeRole = apiRolesList.find(r => r.role === selectedRole)
+    if (!activeRole) return
+
+    const initialPerms: RolePermissions = {}
+    const backendPerms = (activeRole.permissions || []) as unknown as DbPermission[]
+
+    backendPerms.forEach((p) => {
+      const parsed = parsePermissionType(p.permission_type)
+      if (parsed) {
+        const { modCode, action } = parsed
+        if (!initialPerms[modCode]) initialPerms[modCode] = {}
+        initialPerms[modCode][action] = true
+      }
+    })
+
+    setLocalPermissions(initialPerms)
     showToast('Changes reverted back to saved state.')
   }
 
   // Group permission rows by their module group
   const groupedModules = [
     {
-      id: 'meal_management',
-      name: 'Meal Management',
-      rows: permissionsList.filter(
-        (p) => p.code === 'meal_management' || p.parentId === 'meal_management'
-      ),
-    },
-    {
-      id: 'order_management',
-      name: 'Order Management',
-      rows: permissionsList.filter(
-        (p) => p.code === 'order_management' || p.parentId === 'order_management'
-      ),
-    },
-    {
-      id: 'inventory_management',
-      name: 'Inventory Management',
-      rows: permissionsList.filter(
-        (p) => p.code === 'inventory_management' || p.parentId === 'inventory_management'
-      ),
-    },
-    {
-      id: 'staff_management',
-      name: 'Staff Management',
-      rows: permissionsList.filter(
-        (p) => p.code === 'staff_management' || p.parentId === 'staff_management'
-      ),
-    },
-    {
-      id: 'view_reports',
-      name: 'Reports',
-      rows: permissionsList.filter(
-        (p) => p.code === 'view_reports' || p.parentId === 'view_reports'
-      ),
-    },
-    {
-      id: 'view_logs',
-      name: 'System Logs & Settings',
-      rows: permissionsList.filter(
-        (p) => p.code === 'view_logs' || p.parentId === 'view_logs'
-      ),
+      id: 'all_permissions',
+      name: 'All Permissions',
+      rows: permissionsList,
     },
   ]
 
-  const roles: Role[] = ['Catering Manager', 'Admin', 'Inventory Manager']
+  const roles: Role[] = apiRolesList.map((r) => r.role as Role)
 
-  // Determine the display total (Mockup denominator matches 30 for Catering Manager / Inventory Manager)
-  const displayTotal = selectedRole === 'Admin' ? totalCount : 30
+  const displayTotal = totalCount
 
   return (
     <div className="space-y-6">
@@ -430,7 +420,6 @@ export function Permissions() {
             <thead>
               <tr className="bg-[#f2f5f7] border-b border-line">
                 <th className="px-6 py-4 font-semibold text-ink text-xs uppercase tracking-wider w-[240px]">Permission</th>
-                <th className="px-6 py-4 font-semibold text-ink text-xs uppercase tracking-wider w-[280px]">Description</th>
                 <th className="px-6 py-4 font-semibold text-ink text-xs uppercase tracking-wider text-center w-[100px]">All</th>
                 <th className="px-6 py-4 font-semibold text-ink text-xs uppercase tracking-wider text-center w-[90px]">Add</th>
                 <th className="px-6 py-4 font-semibold text-ink text-xs uppercase tracking-wider text-center w-[90px]">Change</th>
@@ -466,12 +455,7 @@ export function Permissions() {
                           </span>
                         </td>
 
-                        {/* Description */}
-                        <td className="px-6 py-4 text-ink-soft text-sm">
-                          <span className={isParent ? 'text-ink font-medium' : ''}>
-                            {row.description}
-                          </span>
-                        </td>
+
 
                         {/* All Toggle */}
                         <td className="px-6 py-4 text-center">
@@ -493,58 +477,74 @@ export function Permissions() {
 
                         {/* Add Checkbox */}
                         <td className="px-6 py-4 text-center">
-                          <div className="flex justify-center">
-                            <input
-                              type="checkbox"
-                              checked={perms.add || false}
-                              onChange={(e) =>
-                                handleCheckboxChange(row.code, 'add', e.target.checked)
-                              }
-                              className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
-                            />
-                          </div>
+                          {row.actions.includes('add') ? (
+                            <div className="flex justify-center">
+                              <input
+                                type="checkbox"
+                                checked={perms.add || false}
+                                onChange={(e) =>
+                                  handleCheckboxChange(row.code, 'add', e.target.checked)
+                                }
+                                className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-ink-soft opacity-30 font-medium">-</span>
+                          )}
                         </td>
 
                         {/* Change Checkbox */}
                         <td className="px-6 py-4 text-center">
-                          <div className="flex justify-center">
-                            <input
-                              type="checkbox"
-                              checked={perms.change || false}
-                              onChange={(e) =>
-                                handleCheckboxChange(row.code, 'change', e.target.checked)
-                              }
-                              className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
-                            />
-                          </div>
+                          {row.actions.includes('change') ? (
+                            <div className="flex justify-center">
+                              <input
+                                type="checkbox"
+                                checked={perms.change || false}
+                                onChange={(e) =>
+                                  handleCheckboxChange(row.code, 'change', e.target.checked)
+                                }
+                                className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-ink-soft opacity-30 font-medium">-</span>
+                          )}
                         </td>
 
                         {/* Delete Checkbox */}
                         <td className="px-6 py-4 text-center">
-                          <div className="flex justify-center">
-                            <input
-                              type="checkbox"
-                              checked={perms.delete || false}
-                              onChange={(e) =>
-                                handleCheckboxChange(row.code, 'delete', e.target.checked)
-                              }
-                              className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
-                            />
-                          </div>
+                          {row.actions.includes('delete') ? (
+                            <div className="flex justify-center">
+                              <input
+                                type="checkbox"
+                                checked={perms.delete || false}
+                                onChange={(e) =>
+                                  handleCheckboxChange(row.code, 'delete', e.target.checked)
+                                }
+                                className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-ink-soft opacity-30 font-medium">-</span>
+                          )}
                         </td>
 
                         {/* View Checkbox */}
                         <td className="px-6 py-4 text-center">
-                          <div className="flex justify-center">
-                            <input
-                              type="checkbox"
-                              checked={perms.view || false}
-                              onChange={(e) =>
-                                handleCheckboxChange(row.code, 'view', e.target.checked)
-                              }
-                              className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
-                            />
-                          </div>
+                          {row.actions.includes('view') ? (
+                            <div className="flex justify-center">
+                              <input
+                                type="checkbox"
+                                checked={perms.view || false}
+                                onChange={(e) =>
+                                  handleCheckboxChange(row.code, 'view', e.target.checked)
+                                }
+                                className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-ink-soft opacity-30 font-medium">-</span>
+                          )}
                         </td>
                       </tr>
                     )
@@ -552,7 +552,7 @@ export function Permissions() {
                   {/* Spacing group divider */}
                   {mIdx < groupedModules.length - 1 && (
                     <tr className="h-4 bg-[#f8fafc]/30">
-                      <td colSpan={7} className="border-t border-b border-line/50 p-0" />
+                      <td colSpan={6} className="border-t border-b border-line/50 p-0" />
                     </tr>
                   )}
                 </React.Fragment>
@@ -584,3 +584,6 @@ export function Permissions() {
     </div>
   )
 }
+
+export default Permissions
+

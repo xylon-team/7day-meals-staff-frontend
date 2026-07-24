@@ -1,13 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-
-export type Role = string
-
-export interface User {
-  email: string
-  name: string
-  role: Role
-}
+import { Role } from '@/store/user-store'
 
 export interface PermissionActions {
   add?: boolean
@@ -39,9 +32,7 @@ export interface UserItem {
 }
 
 interface StoreState {
-  user: User | null
-  login: (email: string, role: string) => void
-  logout: () => void
+
   permissions: PermissionsMapping
   updateRolePermissions: (role: Role, permissions: RolePermissions) => void
   rolesList: RoleItem[]
@@ -56,70 +47,79 @@ interface StoreState {
 
 const defaultPermissions: PermissionsMapping = {
   Admin: {
-    meal_management: { add: true, change: true, delete: true, view: true },
-    view_meals: { add: true, change: true, delete: true, view: true },
-    create_meals: { add: true, change: true, delete: true, view: true },
-    edit_meals: { add: true, change: true, delete: true, view: true },
-    delete_meals: { add: true, change: true, delete: true, view: true },
-    order_management: { add: true, change: true, delete: true, view: true },
-    view_orders: { add: true, change: true, delete: true, view: true },
-    update_order_status: { add: true, change: true, delete: true, view: true },
-    cancel_order: { add: true, change: true, delete: true, view: true },
-    inventory_management: { add: true, change: true, delete: true, view: true },
-    view_inventory: { add: true, change: true, delete: true, view: true },
-    add_inventory: { add: true, change: true, delete: true, view: true },
-    staff_management: { add: true, change: true, delete: true, view: true },
-    view_staff: { add: true, change: true, delete: true, view: true },
-    manage_salary: { add: true, change: true, delete: true, view: true },
-    view_reports: { add: true, change: true, delete: true, view: true },
-    export_reports: { add: true, change: true, delete: true, view: true },
-    view_logs: { add: true, change: true, delete: true, view: true },
-    manage_settings: { add: true, change: true, delete: true, view: true },
-    manage_users: { add: true, change: true, delete: true, view: true },
+    meal_item: { add: true, change: true, delete: true, view: true },
+    meal_package: { add: true, change: true, delete: true, view: true },
+    promotion: { add: true, change: true, delete: true, view: true },
+    customer: { add: true, change: true, delete: true, view: true },
+    orders: { add: true, change: true, delete: true, view: true },
+    customer_feedback: { add: true, change: true, delete: true, view: true },
+    payment_record: { add: true, change: true, delete: true, view: true },
+    complaints: { add: true, change: true, delete: true, view: true },
+    meal_report: { add: true, change: true, delete: true, view: true },
+    logs: { add: true, change: true, delete: true, view: true },
+    supplier: { add: true, change: true, delete: true, view: true },
+    inventory_item: { add: true, change: true, delete: true, view: true },
+    low_stock_threshold: { add: true, change: true, delete: true, view: true },
+    re_stock: { add: true, change: true, delete: true, view: true },
+    re_stock_history: { add: true, change: true, delete: true, view: true },
+    supply_request: { add: true, change: true, delete: true, view: true },
+    inventory_report: { add: true, change: true, delete: true, view: true },
+    system_settings: { add: true, change: true, delete: true, view: true },
+    permission_assign: { add: true, change: true, delete: true, view: true },
+    role: { add: true, change: true, delete: true, view: true },
+    staff: { add: true, change: true, delete: true, view: true },
+    analysis_report: { add: true, change: true, delete: true, view: true },
+    recovery_account: { add: true, change: true, delete: true, view: true },
   },
   'Catering Manager': {
-    meal_management: { add: true, change: true, delete: true, view: true },
-    view_meals: { add: false, change: false, delete: false, view: true },
-    create_meals: { add: true, change: false, delete: false, view: true },
-    edit_meals: { add: false, change: true, delete: false, view: true },
-    delete_meals: { add: false, change: false, delete: true, view: true },
-    order_management: { add: true, change: true, delete: true, view: true },
-    view_orders: { add: false, change: false, delete: false, view: true },
-    update_order_status: { add: false, change: true, delete: false, view: true },
-    cancel_order: { add: false, change: false, delete: true, view: true },
-    inventory_management: { add: false, change: false, delete: false, view: false },
-    view_inventory: { add: false, change: false, delete: false, view: false },
-    add_inventory: { add: false, change: false, delete: false, view: false },
-    staff_management: { add: false, change: true, delete: false, view: true },
-    view_staff: { add: false, change: false, delete: false, view: true },
-    manage_salary: { add: true, change: true, delete: false, view: true },
-    view_reports: { add: false, change: false, delete: false, view: true },
-    export_reports: { add: false, change: false, delete: false, view: false },
-    view_logs: { add: false, change: false, delete: false, view: false },
-    manage_settings: { add: false, change: false, delete: false, view: false },
-    manage_users: { add: false, change: false, delete: false, view: false },
+    meal_item: { add: true, change: true, delete: true, view: true },
+    meal_package: { add: true, change: true, delete: true, view: true },
+    promotion: { add: true, change: true, delete: true, view: true },
+    customer: { add: false, change: false, delete: false, view: false },
+    orders: { add: true, change: true, delete: true, view: true },
+    customer_feedback: { add: false, change: false, delete: false, view: false },
+    payment_record: { add: false, change: false, delete: false, view: false },
+    complaints: { add: false, change: false, delete: false, view: false },
+    meal_report: { add: false, change: false, delete: false, view: true },
+    logs: { add: false, change: false, delete: false, view: false },
+    supplier: { add: false, change: false, delete: false, view: false },
+    inventory_item: { add: false, change: false, delete: false, view: false },
+    low_stock_threshold: { add: false, change: false, delete: false, view: false },
+    re_stock: { add: false, change: false, delete: false, view: false },
+    re_stock_history: { add: false, change: false, delete: false, view: false },
+    supply_request: { add: false, change: false, delete: false, view: false },
+    inventory_report: { add: false, change: false, delete: false, view: false },
+    system_settings: { add: false, change: false, delete: false, view: false },
+    permission_assign: { add: false, change: false, delete: false, view: false },
+    role: { add: false, change: false, delete: false, view: false },
+    staff: { add: false, change: false, delete: false, view: false },
+    analysis_report: { add: false, change: false, delete: false, view: false },
+    recovery_account: { add: false, change: false, delete: false, view: false },
   },
   'Inventory Manager': {
-    meal_management: { add: false, change: false, delete: false, view: true },
-    view_meals: { add: false, change: false, delete: false, view: true },
-    create_meals: { add: false, change: false, delete: false, view: true },
-    edit_meals: { add: false, change: false, delete: false, view: true },
-    delete_meals: { add: false, change: false, delete: false, view: true },
-    order_management: { add: false, change: false, delete: false, view: true },
-    view_orders: { add: false, change: false, delete: false, view: true },
-    update_order_status: { add: false, change: false, delete: false, view: true },
-    cancel_order: { add: false, change: false, delete: false, view: true },
-    inventory_management: { add: true, change: true, delete: true, view: true },
-    view_inventory: { add: false, change: false, delete: false, view: true },
-    add_inventory: { add: true, change: false, delete: false, view: true },
-    staff_management: { add: false, change: false, delete: false, view: false },
-    view_staff: { add: false, change: false, delete: false, view: false },
-    manage_salary: { add: false, change: false, delete: false, view: false },
-    view_reports: { add: false, change: false, delete: false, view: true },
-    export_reports: { add: false, change: false, delete: false, view: true },
-    view_logs: { add: false, change: false, delete: false, view: true },
-    manage_settings: { add: false, change: false, delete: false, view: false },
-    manage_users: { add: false, change: false, delete: false, view: false },
+    meal_item: { add: false, change: false, delete: false, view: false },
+    meal_package: { add: false, change: false, delete: false, view: false },
+    promotion: { add: false, change: false, delete: false, view: false },
+    customer: { add: false, change: false, delete: false, view: false },
+    orders: { add: false, change: false, delete: false, view: false },
+    customer_feedback: { add: false, change: false, delete: false, view: false },
+    payment_record: { add: false, change: false, delete: false, view: false },
+    complaints: { add: false, change: false, delete: false, view: false },
+    meal_report: { add: false, change: false, delete: false, view: false },
+    logs: { add: false, change: false, delete: false, view: false },
+    supplier: { add: true, change: true, delete: true, view: true },
+    inventory_item: { add: true, change: true, delete: true, view: true },
+    low_stock_threshold: { add: true, change: true, delete: true, view: true },
+    re_stock: { add: true, change: true, delete: true, view: true },
+    re_stock_history: { add: true, change: true, delete: true, view: true },
+    supply_request: { add: true, change: true, delete: true, view: true },
+    inventory_report: { add: true, change: true, delete: true, view: true },
+    system_settings: { add: false, change: false, delete: false, view: false },
+    permission_assign: { add: false, change: false, delete: false, view: false },
+    role: { add: false, change: false, delete: false, view: false },
+    staff: { add: false, change: false, delete: false, view: false },
+    analysis_report: { add: false, change: false, delete: false, view: false },
+    recovery_account: { add: false, change: false, delete: false, view: false },
   },
 }
 
@@ -163,24 +163,9 @@ const defaultUsers: UserItem[] = [
 export const useStore = create<StoreState>()(
   persist(
     (set) => ({
-      user: null,
       permissions: defaultPermissions,
       rolesList: defaultRoles,
       usersList: defaultUsers,
-      login: (email: string, role: string) =>
-        set({
-          user: {
-            email,
-            name:
-              role === 'Admin'
-                ? 'Admin User'
-                : role === 'Catering Manager'
-                ? 'Catering Manager'
-                : 'Inventory Manager',
-            role: role as Role,
-          },
-        }),
-      logout: () => set({ user: null }),
       updateRolePermissions: (role: Role, permissions: RolePermissions) =>
         set((state) => ({
           permissions: {
