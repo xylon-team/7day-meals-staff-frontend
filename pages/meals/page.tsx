@@ -1,0 +1,497 @@
+'use client'
+
+import React, { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import {
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  Check,
+  X,
+  SlidersHorizontal,
+  Image as ImageIcon,
+  Loader2,
+} from 'lucide-react'
+import { useUserStore } from '@/store/user-store'
+import { usePermission } from '@/lib/use-permission'
+import { getMeals, createMeal, updateMeal, deleteMeal } from '@/lib/api/meals'
+import { Meal } from '@/lib/types/meals'
+import { Badge } from '@/components/Badge'
+import { Button } from '@/components/Button'
+import { Card, CardContent } from '@/components/Card'
+import { Input } from '@/components/Input'
+import { cn } from '@/lib/utils'
+
+export function Meals() {
+  const router = useRouter()
+  const { user } = useUserStore()
+
+  // Permissions check
+  const canView = usePermission('meal_item', 'view')
+  const canAdd = usePermission('meal_item', 'add')
+  const canChange = usePermission('meal_item', 'change')
+  const canDelete = usePermission('meal_item', 'delete')
+
+  // Redirection guard
+  useEffect(() => {
+    if (!user) {
+      router.push('/login')
+    } else if (!canView) {
+      router.push('/dashboard')
+    }
+  }, [user, canView, router])
+
+  // Component States
+  const [meals, setMeals] = useState<Meal[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showVegOnly, setShowVegOnly] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+
+  // Edit / Add Modal States
+  const [isMealModalOpen, setIsMealModalOpen] = useState(false)
+  const [mealEditing, setMealEditing] = useState<Meal | null>(null)
+  const [mealName, setMealName] = useState('')
+  const [mealIngredients, setMealIngredients] = useState('')
+  const [mealPrice, setMealPrice] = useState('')
+  const [mealIsVeg, setMealIsVeg] = useState(false)
+  const [mealIsAvailable, setMealIsAvailable] = useState(true)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Delete Confirmation State
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
+
+  const showToast = useCallback((message: string) => {
+    setToastMessage(message)
+    setTimeout(() => {
+      setToastMessage(null)
+    }, 3000)
+  }, [])
+
+  const fetchMeals = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await getMeals()
+      setMeals(data)
+    } catch (err) {
+      console.error('Error fetching meals:', err)
+      showToast('Failed to load meals.')
+    } finally {
+      setLoading(false)
+    }
+  }, [showToast])
+
+  // Fetch meals on load
+  useEffect(() => {
+    if (user && canView) {
+      Promise.resolve().then(() => {
+        fetchMeals()
+      })
+    }
+  }, [user, canView, fetchMeals])
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {}
+    if (!mealName.trim()) {
+      newErrors.name = 'Meal name is required.'
+    }
+    if (!mealIngredients.trim()) {
+      newErrors.ingredients = 'Ingredients are required.'
+    }
+    if (!mealPrice || isNaN(Number(mealPrice)) || Number(mealPrice) <= 0) {
+      newErrors.price = 'Price must be a positive number.'
+    }
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleMealSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!validateForm()) return
+
+    const mealDto = {
+      name: mealName.trim(),
+      ingredients: mealIngredients.trim(),
+      price: Math.round(Number(mealPrice)),
+      is_available: mealIsAvailable,
+      is_veg: mealIsVeg,
+    }
+
+    try {
+      if (mealEditing) {
+        await updateMeal(mealEditing.id, mealDto)
+        showToast(`Meal "${mealDto.name}" updated successfully!`)
+      } else {
+        await createMeal(mealDto)
+        showToast(`Meal "${mealDto.name}" created successfully!`)
+      }
+      await fetchMeals()
+      setIsMealModalOpen(false)
+    } catch (err) {
+      console.error(err)
+      showToast('Failed to save meal.')
+    }
+  }
+
+  const handleDeleteMeal = async (id: number) => {
+    const targetMeal = meals.find((m) => m.id === id)
+    const mealLabel = targetMeal ? targetMeal.name : 'Meal'
+    try {
+      await deleteMeal(id)
+      showToast(`Meal "${mealLabel}" deleted.`)
+      setDeleteConfirm(null)
+      await fetchMeals()
+    } catch (err) {
+      console.error(err)
+      showToast('Failed to delete meal.')
+    }
+  }
+
+  const handleToggleAvailability = async (id: number, currentStatus: boolean, name: string) => {
+    try {
+      const newStatus = !currentStatus
+      await updateMeal(id, { is_available: newStatus })
+      showToast(`"${name}" is now ${newStatus ? 'Available' : 'Unavailable'}.`)
+      await fetchMeals()
+    } catch (err) {
+      console.error(err)
+      showToast('Failed to change availability.')
+    }
+  }
+
+  const openMealModal = (meal: Meal | null = null) => {
+    setErrors({})
+    if (meal) {
+      setMealEditing(meal)
+      setMealName(meal.name)
+      setMealIngredients(meal.ingredients)
+      setMealPrice(meal.price.toString())
+      setMealIsVeg(!!meal.is_veg)
+      setMealIsAvailable(meal.is_available)
+    } else {
+      setMealEditing(null)
+      setMealName('')
+      setMealIngredients('')
+      setMealPrice('')
+      setMealIsVeg(false)
+      setMealIsAvailable(true)
+    }
+    setIsMealModalOpen(true)
+  }
+
+  // Dynamic filter logic
+  const filteredMeals = meals.filter((meal) => {
+    const matchesSearch =
+      meal.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      meal.ingredients.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesVeg = !showVegOnly || meal.is_veg
+    return matchesSearch && matchesVeg
+  })
+
+  // Avoid loading screen / flash if unauthorized
+  if (!user || !canView) return null
+
+  return (
+    <div className="space-y-8">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2 bg-[#0d7377] text-white px-4 py-3 rounded-card shadow-lg animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <Check size={18} />
+          <span className="text-sm font-semibold">{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Header & Breadcrumb */}
+      <div>
+        <nav className="flex items-center gap-2 text-xs text-ink-soft mb-2">
+          <span className="cursor-pointer hover:underline" onClick={() => router.push('/dashboard')}>
+            Dashboard
+          </span>
+          <span>/</span>
+          <span className="text-ink font-medium">Meals</span>
+        </nav>
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-ink">Meal Management</h2>
+          {canAdd && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => openMealModal()}
+              className="flex items-center gap-1.5 shadow-sm cursor-pointer"
+            >
+              <Plus size={16} /> Add Meal
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Card Wrapper for table */}
+      <Card>
+        {/* Card Header (Search & filter) */}
+        <div className="p-4 border-b border-line bg-card flex items-center justify-between gap-4">
+          <div className="relative w-full max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" size={16} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search meals..."
+              className="h-10 pl-10 pr-4 rounded-control border border-line bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full transition-all text-ink placeholder:text-ink-soft"
+            />
+          </div>
+          <button
+            onClick={() => setShowVegOnly(!showVegOnly)}
+            className={cn(
+              'h-10 w-10 flex items-center justify-center rounded-control border transition-all cursor-pointer shrink-0',
+              showVegOnly
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-line text-ink-soft hover:bg-canvas'
+            )}
+            title={showVegOnly ? 'Show All Meals' : 'Filter Vegetarian Only'}
+          >
+            <SlidersHorizontal size={18} />
+          </button>
+        </div>
+
+        {/* Loading Indicator */}
+        {loading ? (
+          <div className="p-12 flex flex-col items-center justify-center gap-2 text-ink-soft">
+            <Loader2 className="animate-spin text-primary" size={24} />
+            <span className="text-sm font-medium">Loading meal items...</span>
+          </div>
+        ) : (
+          /* Table Layout */
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left border-collapse">
+              <thead>
+                <tr className="bg-canvas border-b border-line text-ink-soft text-[11px] font-bold uppercase tracking-wider">
+                  <th className="px-6 py-4 w-[280px]">Meal Name</th>
+                  <th className="px-6 py-4">Ingredients</th>
+                  <th className="px-6 py-4 w-[110px]">Price</th>
+                  <th className="px-6 py-4 text-center w-[130px]">Availability</th>
+                  <th className="px-6 py-4 text-right w-[140px]">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line bg-card">
+                {filteredMeals.length > 0 ? (
+                  filteredMeals.map((meal) => (
+                    <tr key={meal.id} className="hover:bg-canvas/30 transition-colors">
+                      {/* Name with Image Placeholder */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-canvas border border-line flex items-center justify-center text-ink-soft shrink-0">
+                            <ImageIcon size={18} />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-ink text-sm leading-tight">{meal.name}</span>
+                            {meal.is_veg && (
+                              <Badge
+                                variant="success"
+                                className="mt-1 w-fit px-1.5 py-0 text-[9px] font-extrabold tracking-wider uppercase rounded"
+                              >
+                                VEG
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Ingredients */}
+                      <td className="px-6 py-4 text-ink-soft text-sm max-w-[200px] md:max-w-xs lg:max-w-md truncate" title={meal.ingredients}>
+                        {meal.ingredients}
+                      </td>
+
+                      {/* Price (Stacked) */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-semibold text-ink-soft leading-none">Rs.</span>
+                          <span className="text-sm font-bold text-ink mt-0.5">{meal.price}</span>
+                        </div>
+                      </td>
+
+                      {/* Availability Switch */}
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex justify-center items-center">
+                          <button
+                            disabled={!canChange}
+                            onClick={() => handleToggleAvailability(meal.id, meal.is_available, meal.name)}
+                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                              meal.is_available ? 'bg-primary-light' : 'bg-line'
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                meal.is_available ? 'translate-x-5' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-ink-soft">
+                        <div className="flex items-center justify-end gap-4">
+                          {canChange && (
+                            <button
+                              onClick={() => openMealModal(meal)}
+                              className="hover:text-ink transition-colors cursor-pointer"
+                              title="Edit Meal"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => setDeleteConfirm(meal.id)}
+                              className="text-danger-fg hover:text-danger-fg/80 transition-colors cursor-pointer"
+                              title="Delete Meal"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-ink-soft">
+                      No meals found matching your filters.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {/* ==================== CREATE / EDIT MEAL MODAL ==================== */}
+      {isMealModalOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-md shadow-2xl border border-line bg-card overflow-hidden animate-in zoom-in-95 duration-200 rounded-xl">
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between bg-card">
+              <h3 className="text-lg font-bold text-ink">{mealEditing ? 'Edit Meal' : 'Add New Meal'}</h3>
+              <button onClick={() => setIsMealModalOpen(false)} className="text-ink-soft hover:text-ink cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleMealSubmit}>
+              <CardContent className="p-6 space-y-4">
+                {/* Meal Name */}
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-1.5">Meal Name</label>
+                  <Input
+                    type="text"
+                    value={mealName}
+                    onChange={(e) => {
+                      setMealName(e.target.value)
+                      if (errors.name) setErrors((prev) => ({ ...prev, name: '' }))
+                    }}
+                    placeholder="e.g. Chicken Fried Rice"
+                    error={errors.name}
+                  />
+                </div>
+
+                {/* Ingredients */}
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-1.5">Ingredients</label>
+                  <textarea
+                    value={mealIngredients}
+                    onChange={(e) => {
+                      setMealIngredients(e.target.value)
+                      if (errors.ingredients) setErrors((prev) => ({ ...prev, ingredients: '' }))
+                    }}
+                    placeholder="e.g. Rice, Chicken, Eggs, Soy Sauce, Green Onions"
+                    className={cn(
+                      'w-full min-h-20 p-3 border border-line rounded-control bg-card text-sm text-ink placeholder:text-ink-soft focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all',
+                      errors.ingredients && 'border-danger-fg focus:ring-danger-fg'
+                    )}
+                  />
+                  {errors.ingredients && <p className="mt-1 text-xs text-danger-fg">{errors.ingredients}</p>}
+                </div>
+
+                {/* Price */}
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-1.5">Price (Rs.)</label>
+                  <Input
+                    type="number"
+                    value={mealPrice}
+                    onChange={(e) => {
+                      setMealPrice(e.target.value)
+                      if (errors.price) setErrors((prev) => ({ ...prev, price: '' }))
+                    }}
+                    placeholder="e.g. 850"
+                    error={errors.price}
+                  />
+                </div>
+
+                {/* Veg Option & Availability (Side by Side) */}
+                <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="mealIsVeg"
+                      checked={mealIsVeg}
+                      onChange={(e) => setMealIsVeg(e.target.checked)}
+                      className="h-4 w-4 rounded border-line text-primary focus:ring-primary"
+                    />
+                    <label htmlFor="mealIsVeg" className="text-sm font-medium text-ink cursor-pointer">
+                      Vegetarian (VEG)
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="mealIsAvailable"
+                      checked={mealIsAvailable}
+                      onChange={(e) => setMealIsAvailable(e.target.checked)}
+                      className="h-4 w-4 rounded border-line text-primary focus:ring-primary"
+                    />
+                    <label htmlFor="mealIsAvailable" className="text-sm font-medium text-ink cursor-pointer">
+                      Available
+                    </label>
+                  </div>
+                </div>
+              </CardContent>
+              <div className="px-6 py-4 bg-canvas border-t border-line flex justify-end gap-3">
+                <Button type="button" variant="ghost" size="sm" onClick={() => setIsMealModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="primary" size="sm">
+                  {mealEditing ? 'Save Changes' : 'Add Meal'}
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+
+      {/* ==================== DELETE CONFIRMATION MODAL ==================== */}
+      {deleteConfirm !== null && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-sm shadow-2xl border border-line bg-card overflow-hidden animate-in zoom-in-95 duration-200 rounded-xl">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-ink mb-2">Delete Meal Item?</h3>
+              <p className="text-sm text-ink-soft mb-6">
+                Are you sure you want to delete this meal item? This action is permanent and cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <Button variant="ghost" size="sm" onClick={() => setDeleteConfirm(null)}>
+                  Cancel
+                </Button>
+                <Button variant="danger" size="sm" onClick={() => handleDeleteMeal(deleteConfirm)}>
+                  Delete Meal
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default Meals
