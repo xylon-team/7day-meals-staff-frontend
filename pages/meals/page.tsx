@@ -46,8 +46,39 @@ export function Meals() {
   const [meals, setMeals] = useState<Meal[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [showVegOnly, setShowVegOnly] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+
+  // Filters States
+  const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false)
+  const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'available' | 'unavailable'>('all')
+  const [minPrice, setMinPrice] = useState('')
+  const [maxPrice, setMaxPrice] = useState('')
+
+  // Temp Filters States (for popover changes)
+  const [tempAvailabilityFilter, setTempAvailabilityFilter] = useState<'all' | 'available' | 'unavailable'>('all')
+  const [tempMinPrice, setTempMinPrice] = useState('')
+  const [tempMaxPrice, setTempMaxPrice] = useState('')
+
+  const filterPopoverRef = React.useRef<HTMLDivElement>(null)
+  const filterButtonRef = React.useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        isFilterPopoverOpen &&
+        filterPopoverRef.current &&
+        !filterPopoverRef.current.contains(event.target as Node) &&
+        filterButtonRef.current &&
+        !filterButtonRef.current.contains(event.target as Node)
+      ) {
+        setIsFilterPopoverOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isFilterPopoverOpen])
 
   // Edit / Add Modal States
   const [isMealModalOpen, setIsMealModalOpen] = useState(false)
@@ -212,8 +243,26 @@ export function Meals() {
     const matchesSearch =
       meal.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       meal.ingredients.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesVeg = !showVegOnly || meal.is_veg
-    return matchesSearch && matchesVeg
+    
+    // Availability Filter
+    let matchesAvailability = true
+    if (availabilityFilter === 'available') {
+      matchesAvailability = meal.is_available === true
+    } else if (availabilityFilter === 'unavailable') {
+      matchesAvailability = meal.is_available === false
+    }
+
+    // Price Filter
+    let matchesPrice = true
+    const priceVal = meal.price
+    if (minPrice !== '') {
+      matchesPrice = matchesPrice && priceVal >= Number(minPrice)
+    }
+    if (maxPrice !== '') {
+      matchesPrice = matchesPrice && priceVal <= Number(maxPrice)
+    }
+
+    return matchesSearch && matchesAvailability && matchesPrice
   })
 
   // Avoid loading screen / flash if unauthorized
@@ -256,7 +305,7 @@ export function Meals() {
       {/* Card Wrapper for table */}
       <Card>
         {/* Card Header (Search & filter) */}
-        <div className="p-4 border-b border-line bg-card flex items-center justify-between gap-4">
+        <div className="p-4 border-b border-line bg-card flex items-center justify-between gap-4 relative">
           <div className="relative w-full max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" size={16} />
             <input
@@ -268,17 +317,129 @@ export function Meals() {
             />
           </div>
           <button
-            onClick={() => setShowVegOnly(!showVegOnly)}
+            ref={filterButtonRef}
+            onClick={() => {
+              if (!isFilterPopoverOpen) {
+                setTempAvailabilityFilter(availabilityFilter)
+                setTempMinPrice(minPrice)
+                setTempMaxPrice(maxPrice)
+              }
+              setIsFilterPopoverOpen(!isFilterPopoverOpen)
+            }}
             className={cn(
               'h-10 w-10 flex items-center justify-center rounded-control border transition-all cursor-pointer shrink-0',
-              showVegOnly
+              isFilterPopoverOpen || availabilityFilter !== 'all' || minPrice !== '' || maxPrice !== ''
                 ? 'border-primary bg-primary/10 text-primary'
                 : 'border-line text-ink-soft hover:bg-canvas'
             )}
-            title={showVegOnly ? 'Show All Meals' : 'Filter Vegetarian Only'}
+            title="Filters"
           >
             <SlidersHorizontal size={18} />
           </button>
+
+          {/* Filters Popover Dropdown */}
+          {isFilterPopoverOpen && (
+            <div
+              ref={filterPopoverRef}
+              className="absolute right-4 top-[56px] z-30 w-[280px] border border-line bg-[#fffdf9] rounded-[12px] shadow-2xl p-5 animate-in fade-in slide-in-from-top-2 duration-200"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[17px] font-bold text-ink">Filters</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTempAvailabilityFilter('all')
+                    setTempMinPrice('')
+                    setTempMaxPrice('')
+                    setAvailabilityFilter('all')
+                    setMinPrice('')
+                    setMaxPrice('')
+                    setIsFilterPopoverOpen(false)
+                  }}
+                  className="text-sm font-semibold text-[#0d7377] hover:underline cursor-pointer"
+                >
+                  Reset
+                </button>
+              </div>
+
+              {/* Availability Filter Section */}
+              <div className="space-y-3 mb-5">
+                <span className="block text-[11px] font-bold text-ink-soft uppercase tracking-wider">Availability</span>
+                <div className="space-y-2.5">
+                  <label className="flex items-center gap-3 cursor-pointer group text-sm font-medium text-ink">
+                    <input
+                      type="radio"
+                      name="availability"
+                      checked={tempAvailabilityFilter === 'all'}
+                      onChange={() => setTempAvailabilityFilter('all')}
+                      className="h-4.5 w-4.5 accent-[#0d7377] cursor-pointer"
+                    />
+                    <span>All</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer group text-sm font-medium text-ink">
+                    <input
+                      type="radio"
+                      name="availability"
+                      checked={tempAvailabilityFilter === 'available'}
+                      onChange={() => setTempAvailabilityFilter('available')}
+                      className="h-4.5 w-4.5 accent-[#0d7377] cursor-pointer"
+                    />
+                    <span>Available</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer group text-sm font-medium text-ink">
+                    <input
+                      type="radio"
+                      name="availability"
+                      checked={tempAvailabilityFilter === 'unavailable'}
+                      onChange={() => setTempAvailabilityFilter('unavailable')}
+                      className="h-4.5 w-4.5 accent-[#0d7377] cursor-pointer"
+                    />
+                    <span>Unavailable</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Price Range Section */}
+              <div className="space-y-3 mb-6">
+                <span className="block text-[11px] font-bold text-ink-soft uppercase tracking-wider">Price Range</span>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      placeholder="Rs. Min"
+                      value={tempMinPrice}
+                      onChange={(e) => setTempMinPrice(e.target.value)}
+                      className="h-10 w-full px-3 border border-line rounded-control bg-white text-sm text-ink placeholder:text-ink-soft/75 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <span className="text-ink-soft/60 font-semibold">—</span>
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      placeholder="Rs. Max"
+                      value={tempMaxPrice}
+                      onChange={(e) => setTempMaxPrice(e.target.value)}
+                      className="h-10 w-full px-3 border border-line rounded-control bg-white text-sm text-ink placeholder:text-ink-soft/75 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Apply Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setAvailabilityFilter(tempAvailabilityFilter)
+                  setMinPrice(tempMinPrice)
+                  setMaxPrice(tempMaxPrice)
+                  setIsFilterPopoverOpen(false)
+                }}
+                className="w-full h-10 bg-[#0d7377] hover:bg-[#0a5c60] text-white text-sm font-semibold rounded-control transition-all shadow-sm cursor-pointer"
+              >
+                Apply Filters
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Loading Indicator */}
