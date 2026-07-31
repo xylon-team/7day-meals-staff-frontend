@@ -57,7 +57,10 @@ export function Meals() {
   const [mealPrice, setMealPrice] = useState('')
   const [mealIsVeg, setMealIsVeg] = useState(false)
   const [mealIsAvailable, setMealIsAvailable] = useState(true)
+  const [mealImage, setMealImage] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   // Delete Confirmation State
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
@@ -68,6 +71,27 @@ export function Meals() {
       setToastMessage(null)
     }, 3000)
   }, [])
+
+  const handleImageClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        showToast('Please select an image file.')
+        return
+      }
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setMealImage(reader.result)
+        }
+      }
+      reader.readAsDataURL(file)
+    }
+  }
 
   const fetchMeals = useCallback(async () => {
     setLoading(true)
@@ -116,6 +140,7 @@ export function Meals() {
       price: Math.round(Number(mealPrice)),
       is_available: mealIsAvailable,
       is_veg: mealIsVeg,
+      image_url: mealImage.trim() || undefined,
     }
 
     try {
@@ -169,6 +194,7 @@ export function Meals() {
       setMealPrice(meal.price.toString())
       setMealIsVeg(!!meal.is_veg)
       setMealIsAvailable(meal.is_available)
+      setMealImage(meal.image_url || '')
     } else {
       setMealEditing(null)
       setMealName('')
@@ -176,6 +202,7 @@ export function Meals() {
       setMealPrice('')
       setMealIsVeg(false)
       setMealIsAvailable(true)
+      setMealImage('')
     }
     setIsMealModalOpen(true)
   }
@@ -277,11 +304,15 @@ export function Meals() {
                 {filteredMeals.length > 0 ? (
                   filteredMeals.map((meal) => (
                     <tr key={meal.id} className="hover:bg-canvas/30 transition-colors">
-                      {/* Name with Image Placeholder */}
+                      {/* Name with Image Thumbnail */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-canvas border border-line flex items-center justify-center text-ink-soft shrink-0">
-                            <ImageIcon size={18} />
+                          <div className="w-10 h-10 rounded-lg bg-canvas border border-line flex items-center justify-center text-ink-soft shrink-0 overflow-hidden">
+                            {meal.image_url ? (
+                              <img src={meal.image_url} alt={meal.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <ImageIcon size={18} />
+                            )}
                           </div>
                           <div className="flex flex-col">
                             <span className="font-bold text-ink text-sm leading-tight">{meal.name}</span>
@@ -370,33 +401,50 @@ export function Meals() {
       {/* ==================== CREATE / EDIT MEAL MODAL ==================== */}
       {isMealModalOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <Card className="w-full max-w-md shadow-2xl border border-line bg-card overflow-hidden animate-in zoom-in-95 duration-200 rounded-xl">
+          <Card className="w-full max-w-[480px] shadow-2xl border border-line bg-card overflow-hidden animate-in zoom-in-95 duration-200 rounded-[12px]">
             <div className="px-6 py-4 border-b border-line flex items-center justify-between bg-card">
-              <h3 className="text-lg font-bold text-ink">{mealEditing ? 'Edit Meal' : 'Add New Meal'}</h3>
-              <button onClick={() => setIsMealModalOpen(false)} className="text-ink-soft hover:text-ink cursor-pointer">
+              <h3 className="text-[17px] font-bold text-ink">{mealEditing ? 'Edit Meal' : 'Add Meal'}</h3>
+              <button onClick={() => setIsMealModalOpen(false)} className="text-ink-soft hover:text-ink cursor-pointer transition-colors">
                 <X size={20} />
               </button>
             </div>
             <form onSubmit={handleMealSubmit}>
-              <CardContent className="p-6 space-y-4">
-                {/* Meal Name */}
-                <div>
-                  <label className="block text-sm font-medium text-ink mb-1.5">Meal Name</label>
-                  <Input
-                    type="text"
-                    value={mealName}
-                    onChange={(e) => {
-                      setMealName(e.target.value)
-                      if (errors.name) setErrors((prev) => ({ ...prev, name: '' }))
-                    }}
-                    placeholder="e.g. Chicken Fried Rice"
-                    error={errors.name}
-                  />
+              <CardContent className="p-6 space-y-5">
+                {/* Meal Name & Price (Side by Side) */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-ink mb-1.5">Meal Name</label>
+                    <Input
+                      type="text"
+                      value={mealName}
+                      onChange={(e) => {
+                        setMealName(e.target.value)
+                        if (errors.name) setErrors((prev) => ({ ...prev, name: '' }))
+                      }}
+                      placeholder="e.g. Chicken Fried Rice"
+                      className="bg-white"
+                      error={errors.name}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-ink mb-1.5">Price (Rs.)</label>
+                    <Input
+                      type="number"
+                      value={mealPrice}
+                      onChange={(e) => {
+                        setMealPrice(e.target.value)
+                        if (errors.price) setErrors((prev) => ({ ...prev, price: '' }))
+                      }}
+                      placeholder="e.g. 850"
+                      className="bg-white"
+                      error={errors.price}
+                    />
+                  </div>
                 </div>
 
-                {/* Ingredients */}
+                {/* Ingredient List */}
                 <div>
-                  <label className="block text-sm font-medium text-ink mb-1.5">Ingredients</label>
+                  <label className="block text-sm font-semibold text-ink mb-1.5">Ingredient List</label>
                   <textarea
                     value={mealIngredients}
                     onChange={(e) => {
@@ -405,64 +453,71 @@ export function Meals() {
                     }}
                     placeholder="e.g. Rice, Chicken, Eggs, Soy Sauce, Green Onions"
                     className={cn(
-                      'w-full min-h-20 p-3 border border-line rounded-control bg-card text-sm text-ink placeholder:text-ink-soft focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all',
+                      'w-full h-20 p-3 border border-line rounded-control bg-white text-sm text-ink placeholder:text-ink-soft focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-none',
                       errors.ingredients && 'border-danger-fg focus:ring-danger-fg'
                     )}
                   />
                   {errors.ingredients && <p className="mt-1 text-xs text-danger-fg">{errors.ingredients}</p>}
                 </div>
 
-                {/* Price */}
+                {/* Image Upload Area */}
                 <div>
-                  <label className="block text-sm font-medium text-ink mb-1.5">Price (Rs.)</label>
-                  <Input
-                    type="number"
-                    value={mealPrice}
-                    onChange={(e) => {
-                      setMealPrice(e.target.value)
-                      if (errors.price) setErrors((prev) => ({ ...prev, price: '' }))
-                    }}
-                    placeholder="e.g. 850"
-                    error={errors.price}
+                  <label className="block text-sm font-semibold text-ink mb-1.5">Image</label>
+                  {mealImage ? (
+                    <div className="relative w-full h-[140px] rounded-control border border-line bg-canvas/30 overflow-hidden group">
+                      <img src={mealImage} alt="Meal Preview" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-4 transition-opacity duration-200">
+                        <button
+                          type="button"
+                          onClick={handleImageClick}
+                          className="px-3 py-1.5 bg-white text-ink text-xs font-semibold rounded shadow hover:bg-white/90 cursor-pointer"
+                        >
+                          Change Image
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMealImage('')}
+                          className="px-3 py-1.5 bg-[#9f1239] text-white text-xs font-semibold rounded shadow hover:bg-[#9f1239]/90 cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={handleImageClick}
+                      className="w-full h-[140px] border border-dashed border-[#e8e4de] rounded-control bg-white hover:bg-canvas/30 transition-all p-6 flex flex-col items-center justify-center gap-2 cursor-pointer group"
+                    >
+                      <ImageIcon size={32} className="text-ink-soft/70 group-hover:text-ink transition-colors" />
+                      <div className="flex flex-col items-center">
+                        <span className="text-sm font-semibold text-[#1a1a2e]">Click to upload image</span>
+                        <span className="text-xs text-ink-soft/80 mt-1">SVG, PNG, JPG or GIF (max. 800x400px)</span>
+                      </div>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageChange}
+                    accept="image/*"
+                    className="hidden"
                   />
                 </div>
-
-                {/* Veg Option & Availability (Side by Side) */}
-                <div className="flex items-center justify-between pt-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="mealIsVeg"
-                      checked={mealIsVeg}
-                      onChange={(e) => setMealIsVeg(e.target.checked)}
-                      className="h-4 w-4 rounded border-line text-primary focus:ring-primary"
-                    />
-                    <label htmlFor="mealIsVeg" className="text-sm font-medium text-ink cursor-pointer">
-                      Vegetarian (VEG)
-                    </label>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="mealIsAvailable"
-                      checked={mealIsAvailable}
-                      onChange={(e) => setMealIsAvailable(e.target.checked)}
-                      className="h-4 w-4 rounded border-line text-primary focus:ring-primary"
-                    />
-                    <label htmlFor="mealIsAvailable" className="text-sm font-medium text-ink cursor-pointer">
-                      Available
-                    </label>
-                  </div>
-                </div>
               </CardContent>
-              <div className="px-6 py-4 bg-canvas border-t border-line flex justify-end gap-3">
-                <Button type="button" variant="ghost" size="sm" onClick={() => setIsMealModalOpen(false)}>
+              <div className="px-6 py-4 border-t border-line flex justify-end items-center gap-3 bg-card">
+                <button
+                  type="button"
+                  onClick={() => setIsMealModalOpen(false)}
+                  className="text-sm font-semibold text-[#0d7377] hover:text-[#0a5c60] hover:underline cursor-pointer bg-transparent border-0 outline-none px-4 py-2"
+                >
                   Cancel
-                </Button>
-                <Button type="submit" variant="primary" size="sm">
-                  {mealEditing ? 'Save Changes' : 'Add Meal'}
-                </Button>
+                </button>
+                <button
+                  type="submit"
+                  className="h-10 px-5 bg-[#0d7377] hover:bg-[#0a5c60] text-white text-sm font-semibold rounded-control transition-all shadow-sm cursor-pointer"
+                >
+                  Save Meal
+                </button>
               </div>
             </form>
           </Card>
