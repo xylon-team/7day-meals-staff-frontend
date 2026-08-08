@@ -20,9 +20,9 @@ const getAuthHeaders = (): Record<string, string> => {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mapMealResponse = (backendMeal: any): Meal => {
   return {
-    id: backendMeal.meal_id || backendMeal.id,
-    name: backendMeal.meal_name || backendMeal.name,
-    ingredients: backendMeal.ingredients || '',
+    id: backendMeal.food_item_id || backendMeal.id,
+    name: backendMeal.item_name || backendMeal.name,
+    ingredients: backendMeal.ingredient_list || '',
     price: Number(backendMeal.price) || 0,
     is_available: backendMeal.is_available !== undefined 
       ? backendMeal.is_available 
@@ -30,7 +30,7 @@ const mapMealResponse = (backendMeal: any): Meal => {
     is_veg: backendMeal.is_veg !== undefined 
       ? backendMeal.is_veg 
       : (backendMeal.vegetarian !== undefined ? backendMeal.vegetarian : false),
-    image_url: backendMeal.image_url || undefined,
+    image_url: backendMeal.image_path || undefined,
   };
 };
 
@@ -71,7 +71,7 @@ const mockMeals: Meal[] = [
 ];
 
 export const getMeals = async (): Promise<Meal[]> => {
-  const url = new URL(`${API_URL}/meal-item`);
+  const url = new URL(`${API_URL}/food-items`);
   try {
     const response = await fetch(url.toString(), {
       method: 'GET',
@@ -90,10 +90,18 @@ export const getMeals = async (): Promise<Meal[]> => {
 
 export const createMeal = async (data: CreateMealDto): Promise<Meal> => {
   try {
-    const response = await fetch(`${API_URL}/meal-item`, {
+    const payload = {
+      item_name: data.name,
+      ingredient_list: data.ingredients,
+      price: data.price,
+      is_available: data.is_available,
+      image_path: data.image_url,
+    };
+    
+    const response = await fetch(`${API_URL}/food-items`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
     if (!response.ok) {
       throw new Error('Failed to create meal');
@@ -113,10 +121,18 @@ export const createMeal = async (data: CreateMealDto): Promise<Meal> => {
 
 export const updateMeal = async (id: number, data: UpdateMealDto): Promise<Meal> => {
   try {
-    const response = await fetch(`${API_URL}/meal-item/${id}`, {
-      method: 'PUT',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload: any = {};
+    if (data.name !== undefined) payload.item_name = data.name;
+    if (data.ingredients !== undefined) payload.ingredient_list = data.ingredients;
+    if (data.price !== undefined) payload.price = data.price;
+    if (data.is_available !== undefined) payload.is_available = data.is_available;
+    if (data.image_url !== undefined) payload.image_path = data.image_url;
+
+    const response = await fetch(`${API_URL}/food-items/${id}`, {
+      method: 'PATCH',
       headers: getAuthHeaders(),
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
     if (!response.ok) {
       throw new Error('Failed to update meal');
@@ -136,7 +152,7 @@ export const updateMeal = async (id: number, data: UpdateMealDto): Promise<Meal>
 
 export const deleteMeal = async (id: number): Promise<boolean> => {
   try {
-    const response = await fetch(`${API_URL}/meal-item/${id}`, {
+    const response = await fetch(`${API_URL}/food-items/${id}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
     });
