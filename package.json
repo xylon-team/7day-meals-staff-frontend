@@ -11,7 +11,7 @@
   "dependencies": {
     "clsx": "^2.1.0",
     "lucide-react": "^0.469.0",
-    "next": "16.2.9",
+    "next": "^16.2.12",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^2.12.0",
@@ -24,7 +24,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/selenium-webdriver": "^4.35.6",
-    "chromedriver": "^150.0.4",
+    "chromedriver": "^148.0.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "selenium-webdriver": "^4.46.0",

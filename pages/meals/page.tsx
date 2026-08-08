@@ -176,13 +176,14 @@ export function Meals() {
 
     try {
       if (mealEditing) {
-        await updateMeal(mealEditing.id, mealDto)
+        const updatedMeal = await updateMeal(mealEditing.id, mealDto)
+        setMeals((prev) => prev.map((m) => (m.id === updatedMeal.id ? updatedMeal : m)))
         showToast(`Meal "${mealDto.name}" updated successfully!`)
       } else {
-        await createMeal(mealDto)
+        const newMeal = await createMeal(mealDto)
+        setMeals((prev) => [newMeal, ...prev])
         showToast(`Meal "${mealDto.name}" created successfully!`)
       }
-      await fetchMeals()
       setIsMealModalOpen(false)
     } catch (err) {
       console.error(err)
@@ -195,9 +196,9 @@ export function Meals() {
     const mealLabel = targetMeal ? targetMeal.name : 'Meal'
     try {
       await deleteMeal(id)
+      setMeals((prev) => prev.filter((m) => m.id !== id))
       showToast(`Meal "${mealLabel}" deleted.`)
       setDeleteConfirm(null)
-      await fetchMeals()
     } catch (err) {
       console.error(err)
       showToast('Failed to delete meal.')
@@ -207,9 +208,9 @@ export function Meals() {
   const handleToggleAvailability = async (id: number, currentStatus: boolean, name: string) => {
     try {
       const newStatus = !currentStatus
-      await updateMeal(id, { is_available: newStatus })
+      const updatedMeal = await updateMeal(id, { is_available: newStatus })
+      setMeals((prev) => prev.map((m) => (m.id === updatedMeal.id ? updatedMeal : m)))
       showToast(`"${name}" is now ${newStatus ? 'Available' : 'Unavailable'}.`)
-      await fetchMeals()
     } catch (err) {
       console.error(err)
       showToast('Failed to change availability.')
