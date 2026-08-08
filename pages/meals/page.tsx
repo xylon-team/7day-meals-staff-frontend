@@ -176,12 +176,14 @@ export function Meals() {
 
     try {
       if (mealEditing) {
-        const updatedMeal = await updateMeal(mealEditing.id, mealDto)
-        setMeals((prev) => prev.map((m) => (m.id === updatedMeal.id ? updatedMeal : m)))
+        const updated = await updateMeal(mealEditing.id, mealDto)
+        const updatedWithVeg = { ...updated, is_veg: mealIsVeg }
+        setMeals((prev) => prev.map((m) => (m.id === mealEditing.id ? updatedWithVeg : m)))
         showToast(`Meal "${mealDto.name}" updated successfully!`)
       } else {
-        const newMeal = await createMeal(mealDto)
-        setMeals((prev) => [newMeal, ...prev])
+        const created = await createMeal(mealDto)
+        const createdWithVeg = { ...created, is_veg: mealIsVeg }
+        setMeals((prev) => [...prev, createdWithVeg])
         showToast(`Meal "${mealDto.name}" created successfully!`)
       }
       setIsMealModalOpen(false)
@@ -208,8 +210,10 @@ export function Meals() {
   const handleToggleAvailability = async (id: number, currentStatus: boolean, name: string) => {
     try {
       const newStatus = !currentStatus
-      const updatedMeal = await updateMeal(id, { is_available: newStatus })
-      setMeals((prev) => prev.map((m) => (m.id === updatedMeal.id ? updatedMeal : m)))
+      await updateMeal(id, { is_available: newStatus })
+      setMeals((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, is_available: newStatus } : m))
+      )
       showToast(`"${name}" is now ${newStatus ? 'Available' : 'Unavailable'}.`)
     } catch (err) {
       console.error(err)
