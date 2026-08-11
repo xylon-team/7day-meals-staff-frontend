@@ -24,11 +24,11 @@ const mapMealResponse = (backendMeal: any): Meal => {
     name: backendMeal.meal_name || backendMeal.name,
     ingredients: backendMeal.ingredients || '',
     price: Number(backendMeal.price) || 0,
-    is_available: backendMeal.is_available !== undefined 
-      ? backendMeal.is_available 
+    is_available: backendMeal.is_available !== undefined
+      ? backendMeal.is_available
       : (backendMeal.availability !== undefined ? backendMeal.availability : true),
-    is_veg: backendMeal.is_veg !== undefined 
-      ? backendMeal.is_veg 
+    is_veg: backendMeal.is_veg !== undefined
+      ? backendMeal.is_veg
       : (backendMeal.vegetarian !== undefined ? backendMeal.vegetarian : false),
     image_url: backendMeal.image_url || undefined,
   };
