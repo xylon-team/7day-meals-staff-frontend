@@ -1,41 +1,86 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/Card'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
 import { Badge } from '@/components/Badge'
-import { Plus, Edit2, Trash2, CalendarDays } from 'lucide-react'
+import { Plus, Edit2, Trash2, CalendarDays, Loader2 } from 'lucide-react'
+import { getMealPlans } from '@/lib/api/meal-plans'
+import { MealPlan } from '@/lib/types/meal-plans'
+import { useUserStore } from '@/store/user-store'
+import { usePermission } from '@/lib/use-permission'
+import { useRouter } from 'next/navigation'
+// Helper to determine the status of the plan
+const getPlanStatus = (plan: MealPlan) => {
+  return plan.is_available ? 'Active' : 'Draft'
+}
 
-const mockPlans = [
-  {
-    id: '1',
-    name: 'Standard Office Week',
-    meals: 15,
-    price: 12500,
-    weeks: 'Mon-Fri',
-    status: 'Active',
-  },
-  {
-    id: '2',
-    name: 'Full Week Premium',
-    meals: 21,
-    price: 18000,
-    weeks: 'Mon-Sun',
-    status: 'Active',
-  },
-  {
-    id: '3',
-    name: 'Weekend Special',
-    meals: 6,
-    price: 5500,
-    weeks: 'Sat-Sun',
-    status: 'Draft',
-  },
-]
+// Helper to determine the week range (e.g., 'Mon-Fri', 'Mon-Sun') based on assigned days
+const getPlanWeekRange = (plan: MealPlan) => {
+  if (!plan.food_items || plan.food_items.length === 0) return 'Not set'
+  
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+  const planDays = Array.from(new Set(plan.food_items.map(fi => fi.day)))
+  
+  if (planDays.length === 0) return 'Not set'
+  
+  // Very basic approximation for display
+  const sortedDays = planDays.sort((a, b) => days.indexOf(a) - days.indexOf(b))
+  if (sortedDays.length === 5 && !sortedDays.includes('Saturday') && !sortedDays.includes('Sunday')) {
+    return 'Mon-Fri'
+  }
+  if (sortedDays.length === 7) return 'Mon-Sun'
+  if (sortedDays.length === 2 && sortedDays.includes('Saturday') && sortedDays.includes('Sunday')) {
+    return 'Sat-Sun'
+  }
+  
+  // Fallback to just returning the number of days
+  return `${sortedDays.length} Days`
+}
 
 export function MealPlans() {
+  const router = useRouter()
+  const { user } = useUserStore()
+  
   const [isCreating, setIsCreating] = useState(false)
+  const [mealPlans, setMealPlans] = useState<MealPlan[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Permissions check
+  const canView = usePermission('meal_package', 'view')
+  const canAdd = usePermission('meal_package', 'add')
+  const canChange = usePermission('meal_package', 'change')
+  const canDelete = usePermission('meal_package', 'delete')
+
+  // Auth + permission guard (mirrors the meals page pattern)
+  useEffect(() => {
+    if (!user) {
+      router.push('/login')
+    } else if (user.permissions !== undefined && !canView) {
+      // permissions have loaded and this user can't view — send to dashboard
+      router.push('/dashboard')
+    }
+  }, [user, canView, router])
+
+  // Load data once we know the user has permission
+  useEffect(() => {
+    if (canView) {
+      loadMealPlans()
+    }
+  }, [canView])
+
+  const loadMealPlans = async () => {
+    setLoading(true)
+    try {
+      const data = await getMealPlans()
+      setMealPlans(data)
+    } catch (error) {
+      console.error('Failed to load meal plans:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (isCreating) {
     return (
@@ -136,8 +181,18 @@ export function MealPlans() {
 
       <Card>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center p-12 text-ink-soft">
+              <Loader2 size={32} className="animate-spin mb-4 text-primary" />
+              <p>Loading meal plans...</p>
+            </div>
+          ) : mealPlans.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-12 text-ink-soft">
+              <p>No meal plans found.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
               <thead className="text-[12px] uppercase text-ink-soft bg-canvas font-semibold">
                 <tr>
                   <th className="px-6 py-3 rounded-tl-card">Plan Name</th>
@@ -149,35 +204,45 @@ export function MealPlans() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {mockPlans.map((p) => (
-                  <tr key={p.id} className="hover:bg-canvas/50 transition-colors">
-                    <td className="px-6 py-4 font-medium flex items-center gap-2">
-                      <CalendarDays size={16} className="text-primary" />{' '}
-                      {p.name}
-                    </td>
-                    <td className="px-6 py-4 text-ink-soft">{p.weeks}</td>
-                    <td className="px-6 py-4">{p.meals} meals</td>
-                    <td className="px-6 py-4 font-medium">Rs. {p.price}</td>
-                    <td className="px-6 py-4">
-                      <Badge
-                        variant={p.status === 'Active' ? 'success' : 'default'}
-                      >
-                        {p.status}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4 text-right space-x-2">
-                      <button className="text-ink-soft hover:text-primary p-1">
-                        <Edit2 size={16} />
-                      </button>
-                      <button className="text-ink-soft hover:text-danger-fg p-1">
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {mealPlans.map((p) => {
+                  const status = getPlanStatus(p)
+                  const mealsCount = p.food_items?.length || 0
+                  
+                  return (
+                    <tr key={p.id} className="hover:bg-canvas/50 transition-colors">
+                      <td className="px-6 py-4 font-medium flex items-center gap-2">
+                        <CalendarDays size={16} className="text-primary" />{' '}
+                        {p.name}
+                      </td>
+                      <td className="px-6 py-4 text-ink-soft">{getPlanWeekRange(p)}</td>
+                      <td className="px-6 py-4">{mealsCount} meals</td>
+                      <td className="px-6 py-4 font-medium">Rs. {p.price.toLocaleString()}</td>
+                      <td className="px-6 py-4">
+                        <Badge
+                          variant={status === 'Active' ? 'success' : 'default'}
+                        >
+                          {status}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 text-right space-x-2">
+                        {canChange && (
+                          <button className="text-ink-soft hover:text-primary p-1">
+                            <Edit2 size={16} />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button className="text-ink-soft hover:text-danger-fg p-1">
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
+        )}
         </CardContent>
       </Card>
     </div>
