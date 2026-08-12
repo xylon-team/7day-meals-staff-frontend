@@ -6,6 +6,15 @@
 
 /* END TAILWIND IMPORTS — ALL OTHER CSS MUST GO BELOW THIS LINE */
 
+/* Tailwind v4 safelist — forces generation of utility classes used in dynamically-rendered
+   components that the JIT scanner may miss (e.g. CreateMealPlanForm day rows).
+   DO NOT REMOVE these classes. */
+@layer utilities {
+  .grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @theme {
   /* Brand colors - Deep Teal theme */
   --color-primary: #0d7377;

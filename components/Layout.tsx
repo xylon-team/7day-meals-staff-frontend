@@ -249,7 +249,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   }
 
   const getPageTitle = () => {
+    if (!pathname) return 'Dashboard'
     if (pathname === '/profile') return 'My Profile'
+    if (pathname.includes('/create-forms')) return 'Create Meal Plan'
+    if (pathname.startsWith('/meal-plans') || pathname.startsWith('/prebuilt-meals')) return 'Meal Plans'
     const allItems = navConfig.flatMap((c) => c.items)
     const item = allItems.find((i) => i.path === pathname)
     return item ? item.name : 'Dashboard'
