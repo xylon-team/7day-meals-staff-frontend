@@ -20,9 +20,9 @@ const getAuthHeaders = (): Record<string, string> => {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mapMealResponse = (backendMeal: any): Meal => {
   return {
-    id: backendMeal.food_item_id || backendMeal.meal_id || backendMeal.id,
-    name: backendMeal.item_name || backendMeal.meal_name || backendMeal.name,
-    ingredients: backendMeal.ingredient_list || backendMeal.ingredients || '',
+    id: backendMeal.food_item_id || backendMeal.id,
+    name: backendMeal.item_name || backendMeal.name,
+    ingredients: backendMeal.ingredient_list || '',
     price: Number(backendMeal.price) || 0,
     is_available: backendMeal.is_available !== undefined 
       ? backendMeal.is_available 
@@ -30,7 +30,7 @@ const mapMealResponse = (backendMeal: any): Meal => {
     is_veg: backendMeal.is_veg !== undefined 
       ? backendMeal.is_veg 
       : (backendMeal.vegetarian !== undefined ? backendMeal.vegetarian : false),
-    image_url: backendMeal.image_path || backendMeal.image_url || undefined,
+    image_url: backendMeal.image_path || undefined,
   };
 };
 
@@ -62,6 +62,7 @@ export const createMeal = async (data: CreateMealDto): Promise<Meal> => {
       is_available: data.is_available,
       image_path: data.image_url,
     };
+    
     const response = await fetch(`${API_URL}/food-items`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -80,6 +81,7 @@ export const createMeal = async (data: CreateMealDto): Promise<Meal> => {
 
 export const updateMeal = async (id: number, data: UpdateMealDto): Promise<Meal> => {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload: any = {};
     if (data.name !== undefined) payload.item_name = data.name;
     if (data.ingredients !== undefined) payload.ingredient_list = data.ingredients;

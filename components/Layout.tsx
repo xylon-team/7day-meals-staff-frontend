@@ -27,6 +27,7 @@ import {
   User as UserIcon,
   X,
   Loader2,
+  ShoppingBag,
 } from 'lucide-react'
 import { useUserStore } from '@/store/user-store'
 import { cn } from '@/lib/utils'
@@ -126,6 +127,17 @@ const navConfig: NavSection[] = [
         path: '/promotions',
         icon: Tags,
         permissionCode: 'promotion',
+      },
+    ],
+  },
+  {
+    label: 'Order Management',
+    items: [
+      {
+        name: 'Orders',
+        path: '/orders',
+        icon: ShoppingBag,
+        permissionCode: 'orders',
       },
     ],
   },
