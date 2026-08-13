@@ -1,0 +1,57 @@
+[33mdbe057e[m[33m ([m[1;31morigin/COURSE-272-Implement-pre-built-meal-plan-creation-form-UI[m[33m, [m[1;31morigin/COURSE-233-COURSE-267-Implement-meal-list-view-UI[m[33m, [m[1;32mCOURSE-233-COURSE-267-Implement-meal-list-view-UI[m[33m)[m Merge pull request #14 from xylon-team/COURSE-264-Implement-filter-in-UI-meal-type-vegetarian-availability
+[33mc3ac560[m[33m ([m[1;31morigin/COURSE-264-Implement-filter-in-UI-meal-type-vegetarian-availability[m[33m)[m feat: implement the filter meal
+[33m7764375[m Merge pull request #13 from xylon-team/COURSE-227-Implement-add-meal-form-UI
+[33m32b08a7[m[33m ([m[1;31morigin/COURSE-227-Implement-add-meal-form-UI[m[33m)[m change meal add form
+[33maf098fc[m feat: Implement meal list view UI
+[33m64359b3[m Merge pull request #12 from xylon-team/Course-56-connect-frontend-with-backend-API
+[33m308b4fc[m fix: updated test for assignRole
+[33m7273c80[m fix: load the sidebar items after staff login
+[33m4017e59[m Merge pull request #11 from xylon-team/COURSE-166-Test-the-functionality
+[33m82dc6c4[m test: add selenium tests for permission
+[33m82c33a6[m Merge pull request #10 from xylon-team/bug-fix-roles-and-users
+[33maacaf05[m fix: roles and users fix
+[33m4529fae[m Merge pull request #9 from xylon-team/permission-frontend-backend-connect
+[33me4e7fc6[m feat: connect the permission page to backend
+[33ma0816e6[m Merge pull request #8 from xylon-team/assign-role-test
+[33m6a11c49[m tests: temp assign role test created
+[33m603cf5a[m Merge pull request #7 from xylon-team/COURSE-184-COURSE-189-Test-application-settings
+[33mf952672[m test: add selenium tests for delivery settings
+[33m18ee991[m Merge pull request #6 from xylon-team/COURSE-221-COURSE-222-Create-the-update-profile-in-figma-and-implement-them-in-the-frontend-and-connect-the-backend
+[33m50f7c3c[m Merge pull request #5 from xylon-team/Course-188
+[33m7104ed9[m feat: settings implemented
+[33m4cd94be[m feat: implement role permission management page with dynamic API integration and state tracking
+[33mfe6d93d[m feat: implement multi-step forgot password flow with OTP verification and password reset functionality
+[33m9d410b4[m fix: add validations to phone number and password. and add the password vissible button
+[33ma80e97a[m feat: connect the staff profile update UI to the backend API
+[33mf1703b6[m feat: create the staff profile update UI
+[33m0d48fc7[m feat: Hook dashboard page to live admin stats
+[33m2771345[m Add API mock fallbacks and staff login
+[33m7ed3336[m refactor: Send nested credential payload for staff create/update
+[33mb2aefb3[m feat: implement staff type definitions and API service layer with role-based management pages
+[33mf67ce47[m refactor: Wire users page roles to backend API
+[33m8706f27[m feat: implement roles API service and define associated TypeScript interfaces
+[33ma42ec20[m feat: implement user and role management page with CRUD functionality and validation
+[33mbb27066[m refactor: Extract user auth into separate store
+[33mf1bcb3c[m refactor: Extract admin login into API module
+[33ma209458[m feat: implement user authentication state store and admin login page shell
+[33m0484e57[m feat: implement authentication state management and admin login page structure
+[33mfa35a02[m feat: add admin login page with secure authentication and mock credentials functionality
+[33me8dfcde[m feat: implement admin authentication portal with secure login form and mock credentials
+[33m6a458c3[m feat: implement admin login portal with mock authentication and UI branding
+[33mdf21285[m feat: add staff and admin login pages with role-based authentication simulation
+[33mc6bd28f[m feat: implement user management and role configuration pages with full CRUD functionality and form validation
+[33m369b181[m feat: implement user and role management store with persistent storage and administrative interface
+[33mc6918b7[m Merge pull request #4 from xylon-team/COURSE-186-COURSE-187-Create-settings-page
+[33mef87425[m settings page implemented
+[33m1aae671[m Merge pull request #3 from xylon-team/fix/adjust-the-folder-structure
+[33m903c29d[m feat: add .gitkeep to utils directory to ensure folder persistence
+[33m235ef98[m feat: implement role and user management pages with permission configuration UI
+[33m4ac694f[m feat: implement app directory routing for dashboard, login, roles, and users modules
+[33mca85a8f[m Merge pull request #2 from xylon-team/feature/dashboard-page
+[33m43fbf79[m feat: implement staff login page with role-based authentication and demo credentials
+[33m413916c[m feat: implement responsive sidebar layout with role-based navigation and administrative modules
+[33mfd83b09[m feat: implement staff authentication system with role-based login and UI components
+[33m14981dc[m chore: add .env.example file with sample environment variables ✅
+[33mc231eb5[m doc: update readme.md file with repo rules ✅
+[33m0fcdc5e[m chore: update folder structure on readme file ✅
+[33mbeeebe1[m init: project with next js with relevant dependencies 🚀
