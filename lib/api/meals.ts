@@ -34,41 +34,6 @@ const mapMealResponse = (backendMeal: any): Meal => {
   };
 };
 
-let mockMealsIdCounter = 5;
-const mockMeals: Meal[] = [
-  {
-    id: 1,
-    name: 'Chicken Fried Rice',
-    ingredients: 'Rice, Chicken, Egg, Vegetables, Soy Sauce',
-    price: 850,
-    is_available: true,
-    is_veg: false,
-  },
-  {
-    id: 2,
-    name: 'Vegetable Kottu',
-    ingredients: 'Godhamba Roti, Carrots, Leeks, Cabbage, Egg (optional), Spices',
-    price: 650,
-    is_available: true,
-    is_veg: true,
-  },
-  {
-    id: 3,
-    name: 'String Hoppers with Fish',
-    ingredients: 'Rice Flour String Hoppers, Fish Curry, Coconut Sambol, Dhal Curry',
-    price: 450,
-    is_available: false,
-    is_veg: false,
-  },
-  {
-    id: 4,
-    name: 'Chicken Curry Rice',
-    ingredients: 'Rice, Chicken Curry, Dhal Curry, Coconut Sambol, Papadam',
-    price: 950,
-    is_available: true,
-    is_veg: false,
-  },
-];
 
 export const getMeals = async (): Promise<Meal[]> => {
   const url = new URL(`${API_URL}/food-items`);
@@ -83,8 +48,8 @@ export const getMeals = async (): Promise<Meal[]> => {
     const data = await response.json();
     return data.map(mapMealResponse);
   } catch (error) {
-    console.warn('Backend unavailable, returning mock meals data', error);
-    return [...mockMeals];
+    console.error('Error fetching meals:', error);
+    throw error;
   }
 };
 
@@ -109,13 +74,8 @@ export const createMeal = async (data: CreateMealDto): Promise<Meal> => {
     const result = await response.json();
     return mapMealResponse(result);
   } catch (error) {
-    console.warn('Backend unavailable, creating meal in mock store', error);
-    const newMeal: Meal = {
-      id: mockMealsIdCounter++,
-      ...data,
-    };
-    mockMeals.push(newMeal);
-    return newMeal;
+    console.error('Error creating meal:', error);
+    throw error;
   }
 };
 
@@ -140,13 +100,8 @@ export const updateMeal = async (id: number, data: UpdateMealDto): Promise<Meal>
     const result = await response.json();
     return mapMealResponse(result);
   } catch (error) {
-    console.warn(`Backend unavailable, updating meal ${id} in mock store`, error);
-    const idx = mockMeals.findIndex((m) => m.id === id);
-    if (idx === -1) {
-      throw new Error('Meal not found');
-    }
-    mockMeals[idx] = { ...mockMeals[idx], ...data };
-    return mockMeals[idx];
+    console.error(`Error updating meal ${id}:`, error);
+    throw error;
   }
 };
 
@@ -161,12 +116,7 @@ export const deleteMeal = async (id: number): Promise<boolean> => {
     }
     return true;
   } catch (error) {
-    console.warn(`Backend unavailable, deleting meal ${id} in mock store`, error);
-    const idx = mockMeals.findIndex((m) => m.id === id);
-    if (idx === -1) {
-      throw new Error('Meal not found');
-    }
-    mockMeals.splice(idx, 1);
-    return true;
+    console.error(`Error deleting meal ${id}:`, error);
+    throw error;
   }
 };
