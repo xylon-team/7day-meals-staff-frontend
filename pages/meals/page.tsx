@@ -526,7 +526,7 @@ export function Meals() {
                         <div className="flex items-center justify-end gap-4">
                           {canChange && (
                             <button
-                              onClick={() => openMealModal(meal)}
+                              onClick={() => router.push(`/meals/edit-meals?id=${meal.id}`)}
                               className="hover:text-ink transition-colors cursor-pointer"
                               title="Edit Meal"
                             >
