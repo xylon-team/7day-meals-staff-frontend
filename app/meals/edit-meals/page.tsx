@@ -187,10 +187,10 @@ export function EditMealModal({
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 sm:p-6 animate-in fade-in duration-200">
+        <div className="w-full flex items-center justify-center p-2 sm:p-4">
             {/* Modal Container */}
             <div
-                className="w-full max-w-[540px] overflow-hidden rounded-2xl bg-white shadow-2xl transition-all border border-[#e8e4de]"
+                className="w-full max-w-[540px] overflow-hidden rounded-2xl bg-white shadow-lg transition-all border border-[#e8e4de]"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="edit-meal-title"
@@ -499,18 +499,16 @@ function EditMealContent() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#f7f4ef] p-4 flex items-center justify-center">
-                <div className="flex flex-col items-center gap-2 text-[#0d7377]">
-                    <Loader2 className="h-8 w-8 animate-spin text-[#0d7377]" />
-                    <span className="text-sm font-medium">Loading meal details...</span>
-                </div>
+            <div className="py-12 flex flex-col items-center justify-center gap-2 text-[#0d7377]">
+                <Loader2 className="h-8 w-8 animate-spin text-[#0d7377]" />
+                <span className="text-sm font-medium">Loading meal details...</span>
             </div>
         )
     }
 
     if (error) {
         return (
-            <div className="min-h-screen bg-[#f7f4ef] p-4 flex flex-col items-center justify-center gap-4">
+            <div className="py-12 flex flex-col items-center justify-center gap-4">
                 <p className="text-red-600 font-semibold">{error}</p>
                 <button
                     onClick={handleCancel}
@@ -523,7 +521,7 @@ function EditMealContent() {
     }
 
     return (
-        <div className="min-h-screen bg-[#f7f4ef] p-4 flex items-center justify-center">
+        <div className="py-4 flex items-center justify-center">
             <EditMealModal
                 initialData={initialData}
                 onSave={handleSave}
@@ -536,7 +534,7 @@ function EditMealContent() {
 export default function EditMealPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-[#f7f4ef] p-4 flex items-center justify-center">
+            <div className="py-12 flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-[#0d7377]" />
             </div>
         }>
