@@ -41,7 +41,7 @@ const getPlanWeekRange = (plan: MealPlan) => {
 
 export function MealPlans() {
   const router = useRouter()
-  const { user } = useUserStore()
+  const { user, hasHydrated } = useUserStore()
   
   const [isCreating, setIsCreating] = useState(false)
   const [mealPlans, setMealPlans] = useState<MealPlan[]>([])
@@ -55,13 +55,14 @@ export function MealPlans() {
 
   // Auth + permission guard (mirrors the meals page pattern)
   useEffect(() => {
+    if (!hasHydrated) return
     if (!user) {
       router.push('/login')
     } else if (user.permissions !== undefined && !canView) {
       // permissions have loaded and this user can't view — send to dashboard
       router.push('/dashboard')
     }
-  }, [user, canView, router])
+  }, [user, canView, hasHydrated, router])
 
   // Load data once we know the user has permission
   useEffect(() => {

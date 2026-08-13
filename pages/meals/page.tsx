@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils'
 
 export function Meals() {
   const router = useRouter()
-  const { user } = useUserStore()
+  const { user, hasHydrated } = useUserStore()
 
   // Permissions check
   const canView = usePermission('meal_item', 'view')
@@ -35,12 +35,13 @@ export function Meals() {
 
   // Redirection guard
   useEffect(() => {
+    if (!hasHydrated) return
     if (!user) {
       router.push('/login')
-    } else if (!canView) {
+    } else if (!canView && user.permissions !== undefined) {
       router.push('/dashboard')
     }
-  }, [user, canView, router])
+  }, [user, canView, hasHydrated, router])
 
   // Component States
   const [meals, setMeals] = useState<Meal[]>([])
