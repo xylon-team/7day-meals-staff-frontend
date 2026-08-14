@@ -223,6 +223,20 @@ export function MealPlans() {
     }
   }
 
+  const handleToggleAvailability = async (id: number, currentStatus: boolean, name: string) => {
+    try {
+      const newStatus = !currentStatus
+      await updateMealPlan(id, { is_available: newStatus })
+      setMealPlans((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, is_available: newStatus } : p))
+      )
+      showToast(`"${name}" is now ${newStatus ? 'Active' : 'Draft'}.`)
+    } catch (err) {
+      console.error(err)
+      showToast('Failed to change availability.')
+    }
+  }
+
   if (isCreating) {
     return (
       <div className="space-y-6">
@@ -469,6 +483,7 @@ export function MealPlans() {
                   <th className="px-6 py-3 rounded-tl-card">Plan Name</th>
                   <th className="px-6 py-3">Week Range</th>
                   <th className="px-6 py-3">Meals</th>
+                  <th className="px-6 py-3">Dietary Preference</th>
                   <th className="px-6 py-3">Price</th>
                   <th className="px-6 py-3">Status</th>
                   <th className="px-6 py-3 text-right rounded-tr-card">Actions</th>
@@ -487,13 +502,32 @@ export function MealPlans() {
                       </td>
                       <td className="px-6 py-4 text-ink-soft">{getPlanWeekRange(p)}</td>
                       <td className="px-6 py-4">{mealsCount} meals</td>
+                      <td className="px-6 py-4">
+                        {p.dietary_preference ? (
+                          <Badge variant="warning" className="px-2.5 py-0.5 text-xs font-semibold rounded-full">
+                            {p.dietary_preference}
+                          </Badge>
+                        ) : (
+                          <span className="text-ink-soft/50 text-xs italic">None</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 font-medium">Rs. {p.price.toLocaleString()}</td>
                       <td className="px-6 py-4">
-                        <Badge
-                          variant={status === 'Active' ? 'success' : 'default'}
-                        >
-                          {status}
-                        </Badge>
+                        <div className="flex items-center">
+                          <button
+                            disabled={!canChange}
+                            onClick={() => handleToggleAvailability(p.id, p.is_available, p.name)}
+                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                              p.is_available ? 'bg-primary-light' : 'bg-line'
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                p.is_available ? 'translate-x-5' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-right space-x-2">
                         {canChange && (
