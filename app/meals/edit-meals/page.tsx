@@ -175,13 +175,13 @@ export function EditMealModal({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 sm:p-6 animate-in fade-in duration-200">
             {/* Modal Container */}
             <div
-                className="w-full max-w-[540px] overflow-hidden rounded-2xl bg-white shadow-2xl transition-all border border-[#e8e4de]"
+                className="w-full max-w-[520px] overflow-hidden rounded-2xl bg-[#fdfcfb] shadow-2xl transition-all border border-[#e8e4de]"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="edit-meal-title"
             >
                 {/* Header */}
-                <div className="flex items-center justify-between border-b border-[#e8e4de] px-6 py-5">
+                <div className="flex items-center justify-between border-b border-[#eee9e5] px-6 py-5 bg-[#fdfcfb]">
                     <h2
                         id="edit-meal-title"
                         className="text-xl font-bold text-[#1a1a2e] tracking-tight"
@@ -191,7 +191,7 @@ export function EditMealModal({
                     <button
                         type="button"
                         onClick={handleClose}
-                        className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-[#0d7377]"
+                        className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors focus:outline-none"
                         aria-label="Close dialog"
                     >
                         <X className="h-5 w-5" />
@@ -200,7 +200,7 @@ export function EditMealModal({
 
                 {/* Form Content */}
                 <form onSubmit={handleSubmit}>
-                    <div className="space-y-5 px-6 py-6">
+                    <div className="space-y-5 px-6 py-6 bg-[#fdfcfb]">
                         {/* Top Row: Meal Name & Price */}
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             {/* Meal Name Field */}
@@ -302,9 +302,9 @@ export function EditMealModal({
                                 onDragOver={handleDragOver}
                                 onDragLeave={handleDragLeave}
                                 onDrop={handleDrop}
-                                className={`relative flex min-h-[175px] cursor-pointer flex-col items-center justify-center rounded-xl border p-6 text-center transition-all ${isDragging
+                                className={`relative flex min-h-[160px] cursor-pointer flex-col items-center justify-center rounded-2xl border p-6 text-center transition-all ${isDragging
                                         ? 'border-[#0d7377] bg-[#0d7377]/5'
-                                        : 'border-[#e8e4de] bg-[#f7f4ef]/60 hover:bg-[#f7f4ef] hover:border-[#0d7377]/50'
+                                        : 'border-[#e4dfd7] bg-[#f7f4ef] hover:bg-[#f3efe8]'
                                     }`}
                             >
                                 {imagePreview ? (
@@ -329,13 +329,13 @@ export function EditMealModal({
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="mb-2.5 text-gray-500">
-                                            <ImageIcon className="h-9 w-9 stroke-[1.4] text-[#4b5563]" />
+                                        <div className="mb-1.5 text-[#4a5568]">
+                                            <ImageIcon className="h-9.5 w-9.5 stroke-[1.5]" />
                                         </div>
-                                        <p className="text-sm font-semibold text-[#1a1a2e]">
+                                        <p className="text-[15px] font-semibold text-[#1a1a2e]">
                                             Click to upload image
                                         </p>
-                                        <p className="mt-1 text-xs text-[#6b7280]">
+                                        <p className="mt-0.5 text-xs text-[#71717a]">
                                             SVG, PNG, JPG or GIF (max. 800x400px)
                                         </p>
                                     </>
@@ -351,13 +351,12 @@ export function EditMealModal({
                         {/* Checkboxes Row */}
                         <div className="flex flex-wrap items-center gap-6 pt-1">
                             {/* Available for orders Checkbox */}
-                            <label className="flex items-center gap-2.5 cursor-pointer group">
+                            <label
+                                onClick={() => handleCheckboxChange('availableForOrders')}
+                                className="flex items-center gap-2.5 cursor-pointer group select-none"
+                            >
                                 <div
-                                    onClick={() => handleCheckboxChange('availableForOrders')}
-                                    className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${formData.availableForOrders
-                                            ? 'border-[#0d7377] bg-white text-[#0d7377]'
-                                            : 'border-gray-400 bg-white group-hover:border-[#0d7377]'
-                                        }`}
+                                    className={`flex h-5 w-5 items-center justify-center rounded-[4px] border-2 transition-all bg-white border-[#0d7377]`}
                                 >
                                     {formData.availableForOrders && (
                                         <Check className="h-3.5 w-3.5 stroke-[3] text-[#0d7377]" />
@@ -369,13 +368,12 @@ export function EditMealModal({
                             </label>
 
                             {/* Vegetarian Checkbox */}
-                            <label className="flex items-center gap-2.5 cursor-pointer group">
+                            <label
+                                onClick={() => handleCheckboxChange('isVegetarian')}
+                                className="flex items-center gap-2.5 cursor-pointer group select-none"
+                            >
                                 <div
-                                    onClick={() => handleCheckboxChange('isVegetarian')}
-                                    className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${formData.isVegetarian
-                                            ? 'border-[#0d7377] bg-white text-[#0d7377]'
-                                            : 'border-gray-400 bg-white group-hover:border-[#0d7377]'
-                                        }`}
+                                    className={`flex h-5 w-5 items-center justify-center rounded-[4px] border-2 transition-all bg-white border-[#0d7377]`}
                                 >
                                     {formData.isVegetarian && (
                                         <Check className="h-3.5 w-3.5 stroke-[3] text-[#0d7377]" />
@@ -396,18 +394,18 @@ export function EditMealModal({
                     )}
 
                     {/* Modal Footer */}
-                    <div className="flex items-center justify-end gap-3 px-6 py-5">
+                    <div className="flex items-center justify-end gap-5 px-6 py-4.5 border-t border-[#eee9e5] bg-[#fdfcfb]">
                         <button
                             type="button"
                             onClick={handleClose}
-                            className="rounded-lg px-5 py-2.5 text-sm font-semibold text-[#0d7377] hover:bg-[#0d7377]/10 active:bg-[#0d7377]/15 transition-colors focus:outline-none focus:ring-2 focus:ring-[#0d7377]"
+                            className="text-sm font-semibold text-[#0d7377] hover:underline cursor-pointer bg-transparent border-0 outline-none"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="flex items-center justify-center gap-2 rounded-lg bg-[#0d7377] px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-[#0a5c60] active:bg-[#08484b] transition-all disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#0d7377] focus:ring-offset-2"
+                            className="flex items-center justify-center gap-2 h-10 px-5 bg-[#0d7377] hover:bg-[#0a5c60] text-white text-sm font-semibold rounded-lg transition-colors shadow-sm cursor-pointer disabled:opacity-50"
                         >
                             {isSubmitting ? (
                                 <>
