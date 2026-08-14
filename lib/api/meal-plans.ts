@@ -78,6 +78,7 @@ export const createMealPlan = async (data: CreateMealPlanDto): Promise<MealPlan>
         image_path: data.image_url,
       },
       foodItems: data.food_items?.map(fi => ({
+        meal_id: 0,
         food_item_id: fi.food_item_id,
         day: fi.day,
         meal_type: fi.meal_type,
@@ -113,6 +114,7 @@ export const updateMealPlan = async (id: number, data: UpdateMealPlanDto): Promi
         image_path: data.image_url,
       },
       foodItems: data.food_items?.map(fi => ({
+        meal_id: id,
         food_item_id: fi.food_item_id,
         day: fi.day,
         meal_type: fi.meal_type,
