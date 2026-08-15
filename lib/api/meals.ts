@@ -88,6 +88,28 @@ export const getMeals = async (): Promise<Meal[]> => {
   }
 };
 
+export const getMealById = async (id: number): Promise<Meal> => {
+  try {
+    const response = await fetch(`${API_URL}/meal-item/${id}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    if (response.ok) {
+      const data = await response.json();
+      return mapMealResponse(data);
+    }
+  } catch (error) {
+    console.warn(`Backend endpoint /meal-item/${id} failed, trying fallback search`, error);
+  }
+
+  const allMeals = await getMeals();
+  const meal = allMeals.find((m) => m.id === id);
+  if (!meal) {
+    throw new Error('Meal not found');
+  }
+  return meal;
+};
+
 export const createMeal = async (data: CreateMealDto): Promise<Meal> => {
   try {
     const response = await fetch(`${API_URL}/meal-item`, {
