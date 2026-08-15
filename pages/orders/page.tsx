@@ -95,10 +95,11 @@ export function Orders() {
 
   // Filter logic
   const filteredOrders = orders.filter((order) => {
+    const searchLower = searchQuery.toLowerCase()
     const matchesSearch =
-      order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.mealPlan.toLowerCase().includes(searchQuery.toLowerCase())
+      String(order.id || '').toLowerCase().includes(searchLower) ||
+      String(order.customer || '').toLowerCase().includes(searchLower) ||
+      String(order.mealPlan || '').toLowerCase().includes(searchLower)
 
     let matchesDate = true
     if (filterDate) {
