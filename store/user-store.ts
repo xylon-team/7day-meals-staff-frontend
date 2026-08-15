@@ -20,6 +20,8 @@ export interface User {
 
 interface UserStoreState {
   user: User | null
+  hasHydrated: boolean
+  setHasHydrated: (state: boolean) => void
   login: (username: string, role: string, accessToken?: string, id?: number | string, name?: string) => void
   logout: () => void
   updateProfile: (name: string, username: string, phone?: string) => void
@@ -30,6 +32,8 @@ export const useUserStore = create<UserStoreState>()(
   persist(
     (set) => ({
       user: null,
+      hasHydrated: false,
+      setHasHydrated: (hasHydrated: boolean) => set({ hasHydrated }),
       login: (username: string, role: string, accessToken?: string, id?: number | string, name?: string) =>
         set({
           user: {
@@ -68,6 +72,9 @@ export const useUserStore = create<UserStoreState>()(
     {
       name: '7day-meals-user-storage',
       storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true)
+      },
     }
   )
 )

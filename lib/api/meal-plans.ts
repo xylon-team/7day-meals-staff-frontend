@@ -1,27 +1,9 @@
-import { MealPlan, CreateMealPlanDto } from '../types/meal-plans';
+import { MealPlan, CreateMealPlanDto, UpdateMealPlanDto } from '../types/meal-plans';
 import { useUserStore } from '@/store/user-store';
-import { adminLogin } from './login';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-let cachedAdminToken: string | null = null;
-
-const getAdminToken = async (): Promise<string | null> => {
-  if (cachedAdminToken) return cachedAdminToken;
-  try {
-    const data = await adminLogin({
-      admin_username: 'admin_local',
-      admin_password: 'admin123',
-    });
-    cachedAdminToken = data.access_token;
-    return cachedAdminToken;
-  } catch (e) {
-    console.warn('Failed background admin login fallback', e);
-    return null;
-  }
-};
-
-const getAuthHeaders = async (): Promise<Record<string, string>> => {
+const getAuthHeaders = (): Record<string, string> => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -139,70 +121,112 @@ export const getMealPlans = async (): Promise<MealPlan[]> => {
 };
 
 export const createMealPlan = async (data: CreateMealPlanDto): Promise<MealPlan> => {
-  const url = `${API_URL}/meal-plan`;
-  const payload = {
-    item_name: data.name,
-    category: data.dietary_preference || 'General',
-    description: data.description,
-    dietary_preference: data.dietary_preference,
-    price: data.price,
-    is_available: data.is_available,
-    daily_meals: data.daily_meals,
-  };
-
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(url, {
+    const payload = {
+      mealPlan: {
+        item_name: data.name,
+        category: data.category,
+        description: data.description,
+        dietary_preference: data.dietary_preference,
+        price: data.price,
+        is_available: data.is_available,
+        image_path: data.image_url,
+      },
+      foodItems: data.food_items?.map(fi => ({
+        meal_id: 0,
+        food_item_id: fi.food_item_id,
+        day: fi.day,
+        meal_type: fi.meal_type,
+      })) || []
+    };
+    
+    const response = await fetch(`${API_URL}/meal-plan`, {
       method: 'POST',
-      headers,
+      headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
-
     if (!response.ok) {
-      throw new Error(`Failed to create meal plan (HTTP ${response.status})`);
+      throw new Error('Failed to create meal plan');
     }
-
     const result = await response.json();
-    const created = mapBackendMealPlan(result);
-    mockMealPlans.unshift(created);
-    return created;
+    return mapMealPlanResponse(result);
   } catch (error) {
-    console.warn('Backend meal plan endpoint unavailable, saving to mock store:', error);
-    const newPlan: MealPlan = {
-      id: mockMealPlansCounter++,
-      name: data.name,
-      description: data.description,
-      dietary_preference: data.dietary_preference || 'General',
-      calculated_price: data.price,
-      is_active: data.is_available,
-      created_at: new Date().toISOString().split('T')[0],
-      daily_meals: data.daily_meals,
+    console.error('Error creating meal plan:', error);
+    throw error;
+  }
+};
+
+export const updateMealPlan = async (id: number, data: UpdateMealPlanDto): Promise<MealPlan> => {
+  try {
+    const payload = {
+      mealPlan: {
+        item_name: data.name,
+        category: data.category,
+        description: data.description,
+        dietary_preference: data.dietary_preference,
+        price: data.price,
+        is_available: data.is_available,
+        image_path: data.image_url,
+      },
+      foodItems: data.food_items?.map(fi => ({
+        meal_id: id,
+        food_item_id: fi.food_item_id,
+        day: fi.day,
+        meal_type: fi.meal_type,
+      })) // If undefined, the backend won't update foodItems
     };
-    mockMealPlans.unshift(newPlan);
-    return newPlan;
+
+    const response = await fetch(`${API_URL}/meal-plan/${id}`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update meal plan');
+    }
+    const result = await response.json();
+    return mapMealPlanResponse(result);
+  } catch (error) {
+    console.error(`Error updating meal plan ${id}:`, error);
+    throw error;
+  }
+};
+
+export const deactivateMealPlan = async (id: number): Promise<boolean> => {
+  try {
+    const response = await fetch(`${API_URL}/meal-plan/${id}/deactivate`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to deactivate meal plan');
+    }
+    return true;
+  } catch (error) {
+    console.error(`Error deactivating meal plan ${id}:`, error);
+    throw error;
   }
 };
 
 export const deleteMealPlan = async (id: number): Promise<boolean> => {
-  const url = `${API_URL}/meal-plan/${id}`;
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(url, {
+    const response = await fetch(`${API_URL}/meal-plan/${id}`, {
       method: 'DELETE',
-      headers,
+      headers: getAuthHeaders(),
     });
-    if (!response.ok) {
-      throw new Error(`Failed to delete meal plan (HTTP ${response.status})`);
+    
+    if (response.status === 409) {
+      const error = new Error('CONFLICT');
+      (error as any).status = 409;
+      throw error;
     }
-    const idx = mockMealPlans.findIndex((p) => p.id === id);
-    if (idx !== -1) mockMealPlans.splice(idx, 1);
+    
+    if (!response.ok) {
+      throw new Error('Failed to delete meal plan');
+    }
     return true;
   } catch (error) {
-    console.warn(`Backend meal plan endpoint unavailable, deleting plan ${id} from mock store:`, error);
-    const idx = mockMealPlans.findIndex((p) => p.id === id);
-    if (idx !== -1) {
-      mockMealPlans.splice(idx, 1);
-    }
-    return true;
+    console.error(`Error deleting meal plan ${id}:`, error);
+    throw error;
   }
 };

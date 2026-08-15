@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils'
 
 export function Meals() {
   const router = useRouter()
-  const { user } = useUserStore()
+  const { user, hasHydrated } = useUserStore()
 
   // Permissions check
   const canView = usePermission('meal_item', 'view')
@@ -35,12 +35,13 @@ export function Meals() {
 
   // Redirection guard
   useEffect(() => {
+    if (!hasHydrated) return
     if (!user) {
       router.push('/login')
-    } else if (!canView) {
+    } else if (!canView && user.permissions !== undefined) {
       router.push('/dashboard')
     }
-  }, [user, canView, router])
+  }, [user, canView, hasHydrated, router])
 
   // Component States
   const [meals, setMeals] = useState<Meal[]>([])
@@ -176,13 +177,16 @@ export function Meals() {
 
     try {
       if (mealEditing) {
-        await updateMeal(mealEditing.id, mealDto)
+        const updated = await updateMeal(mealEditing.id, mealDto)
+        const updatedWithVeg = { ...updated, is_veg: mealIsVeg }
+        setMeals((prev) => prev.map((m) => (m.id === mealEditing.id ? updatedWithVeg : m)))
         showToast(`Meal "${mealDto.name}" updated successfully!`)
       } else {
-        await createMeal(mealDto)
+        const created = await createMeal(mealDto)
+        const createdWithVeg = { ...created, is_veg: mealIsVeg }
+        setMeals((prev) => [...prev, createdWithVeg])
         showToast(`Meal "${mealDto.name}" created successfully!`)
       }
-      await fetchMeals()
       setIsMealModalOpen(false)
     } catch (err) {
       console.error(err)
@@ -195,9 +199,9 @@ export function Meals() {
     const mealLabel = targetMeal ? targetMeal.name : 'Meal'
     try {
       await deleteMeal(id)
+      setMeals((prev) => prev.filter((m) => m.id !== id))
       showToast(`Meal "${mealLabel}" deleted.`)
       setDeleteConfirm(null)
-      await fetchMeals()
     } catch (err) {
       console.error(err)
       showToast('Failed to delete meal.')
@@ -208,8 +212,10 @@ export function Meals() {
     try {
       const newStatus = !currentStatus
       await updateMeal(id, { is_available: newStatus })
+      setMeals((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, is_available: newStatus } : m))
+      )
       showToast(`"${name}" is now ${newStatus ? 'Available' : 'Unavailable'}.`)
-      await fetchMeals()
     } catch (err) {
       console.error(err)
       showToast('Failed to change availability.')

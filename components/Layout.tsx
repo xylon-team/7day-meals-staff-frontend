@@ -27,6 +27,7 @@ import {
   User as UserIcon,
   X,
   Loader2,
+  ShoppingBag,
 } from 'lucide-react'
 import { useUserStore } from '@/store/user-store'
 import { cn } from '@/lib/utils'
@@ -130,6 +131,23 @@ const navConfig: NavSection[] = [
     ],
   },
   {
+    label: 'Order Management',
+    items: [
+      {
+        name: 'New Orders',
+        path: '/new-orders',
+        icon: ShoppingBag,
+        permissionCode: 'orders',
+      },
+      {
+        name: 'Order Status',
+        path: '/orders',
+        icon: ClipboardList,
+        permissionCode: 'orders',
+      },
+    ],
+  },
+  {
     label: 'Inventory',
     items: [
       {
@@ -228,15 +246,35 @@ function checkPermission(
 // ---------------------------------------------------------------------------
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useUserStore()
+  const { user, logout, hasHydrated, setHasHydrated } = useUserStore()
   const router = useRouter()
   const pathname = usePathname()
   const [isSidebarOpen, setSidebarOpen] = useState(true)
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isProfileOpen, setProfileOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+    if (useUserStore.persist?.hasHydrated?.()) {
+      setHasHydrated(true)
+    }
+  }, [setHasHydrated])
+
+  // While initializing/hydrating from localStorage, show loading indicator for protected routes
+  if (!mounted || !hasHydrated) {
+    if (pathname === '/' || pathname === '/login' || pathname === '/admin-login') {
+      return <>{children}</>
+    }
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-canvas">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   // Don't show layout on login or root page
-  if (!user || pathname === '/' || pathname === '/login') {
+  if (!user || pathname === '/' || pathname === '/login' || pathname === '/admin-login') {
     return <>{children}</>
   }
 
@@ -250,6 +288,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const getPageTitle = () => {
     if (pathname === '/profile') return 'My Profile'
+    if (pathname === '/new-orders') return 'New Orders'
+    if (pathname === '/orders') return 'Order Status'
     const allItems = navConfig.flatMap((c) => c.items)
     const item = allItems.find((i) => i.path === pathname)
     return item ? item.name : 'Dashboard'
