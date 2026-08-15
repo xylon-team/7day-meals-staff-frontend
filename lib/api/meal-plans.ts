@@ -137,13 +137,35 @@ export const updateMealPlan = async (id: number, data: UpdateMealPlanDto): Promi
   }
 };
 
+export const deactivateMealPlan = async (id: number): Promise<boolean> => {
+  try {
+    const response = await fetch(`${API_URL}/meal-plan/${id}/deactivate`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to deactivate meal plan');
+    }
+    return true;
+  } catch (error) {
+    console.error(`Error deactivating meal plan ${id}:`, error);
+    throw error;
+  }
+};
+
 export const deleteMealPlan = async (id: number): Promise<boolean> => {
   try {
-    // Note: ensure the backend supports DELETE /meal-plan/:id
     const response = await fetch(`${API_URL}/meal-plan/${id}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
     });
+    
+    if (response.status === 409) {
+      const error = new Error('CONFLICT');
+      (error as any).status = 409;
+      throw error;
+    }
+    
     if (!response.ok) {
       throw new Error('Failed to delete meal plan');
     }
