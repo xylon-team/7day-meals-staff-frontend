@@ -29,6 +29,8 @@ const mapOrderResponse = (backendOrder: any): Order => {
   const mealPlanName = backendOrder.meal_plan?.item_name || backendOrder.meal_plan || backendOrder.mealPlan || (backendOrder.meal_id ? `Meal Plan #${backendOrder.meal_id}` : '');
   const totalAmount = backendOrder.meal_plan?.price || backendOrder.total || 0;
 
+  const rawStatus = backendOrder.order_status || backendOrder.status || 'PENDING';
+
   return {
     id: String(backendOrder.order_id || backendOrder.id || ''),
     customer: String(customerName),
@@ -36,7 +38,7 @@ const mapOrderResponse = (backendOrder: any): Order => {
     total: Number(totalAmount),
     deliveryPreferredDate: backendOrder.delivery_preferred_date ? formatDate(backendOrder.delivery_preferred_date) : backendOrder.deliveryPreferredDate || '',
     date: backendOrder.order_timestamp ? formatDate(backendOrder.order_timestamp) : backendOrder.order_date || backendOrder.date || '',
-    status: backendOrder.order_status || backendOrder.status || 'PENDING',
+    status: String(rawStatus).toUpperCase() as 'PENDING' | 'DELIVERED',
   };
 };
 
@@ -165,12 +167,7 @@ export const updateOrderStatus = async (id: string, dto: UpdateOrderStatusDto): 
     
     return mapOrderResponse(result);
   } catch (error) {
-    console.warn(`Backend unavailable, updating order ${id} status in mock store`, error);
-    const idx = mockOrders.findIndex((o) => o.id === id);
-    if (idx === -1) {
-      throw new Error('Order not found');
-    }
-    mockOrders[idx] = { ...mockOrders[idx], status: dto.status };
-    return mockOrders[idx];
+    console.error(`Failed to update order ${id} status:`, error);
+    throw error;
   }
 };

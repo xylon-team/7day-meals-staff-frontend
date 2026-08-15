@@ -12,7 +12,6 @@ import { useUserStore } from '@/store/user-store'
 import { usePermission } from '@/lib/use-permission'
 import { getOrders, updateOrderStatus } from '@/lib/api/orders'
 import { Order, OrderStatus } from '@/lib/types/orders'
-import { Badge } from '@/components/Badge'
 import { Card } from '@/components/Card'
 
 // Helper to format date input "2023-10-24" into "Oct 24, 2023" to match mock data
@@ -50,8 +49,13 @@ export function Orders() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [filterDate, setFilterDate] = useState('2023-10-24') // Prepopulate to match screenshot
+  const [filterDate, setFilterDate] = useState('') 
+  
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState('')
+  const [appliedFilterDate, setAppliedFilterDate] = useState('')
+  
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set())
 
   const showToast = useCallback((message: string) => {
     setToastMessage(message)
@@ -83,27 +87,53 @@ export function Orders() {
   }, [user, canView, fetchOrders])
 
   const handleUpdateStatus = async (id: string, newStatus: OrderStatus) => {
+    // Optimistically update the single row in state immediately
+    const previousOrders = orders
+    setOrders((prev) =>
+      prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o))
+    )
+    // Mark this row as updating
+    setUpdatingIds((prev) => new Set(prev).add(id))
     try {
       await updateOrderStatus(id, { status: newStatus })
-      showToast(`Order ${id} has been ${newStatus.toLowerCase()} successfully!`)
-      await fetchOrders()
+      showToast(`Order #${id} status updated to ${newStatus.toLowerCase()}.`)
     } catch (err) {
       console.error('Error updating status:', err)
-      showToast(`Failed to update status for order ${id}.`)
+      // Revert on failure
+      setOrders(previousOrders)
+      showToast(`Failed to update status for order #${id}.`)
+    } finally {
+      setUpdatingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
     }
+  }
+  
+  const handleApplyFilters = () => {
+    setAppliedSearchQuery(searchQuery)
+    setAppliedFilterDate(filterDate)
+  }
+
+  const handleClearFilters = () => {
+    setSearchQuery('')
+    setFilterDate('')
+    setAppliedSearchQuery('')
+    setAppliedFilterDate('')
   }
 
   // Filter logic
   const filteredOrders = orders.filter((order) => {
-    const searchLower = searchQuery.toLowerCase()
+    const searchLower = appliedSearchQuery.toLowerCase()
     const matchesSearch =
       String(order.id || '').toLowerCase().includes(searchLower) ||
       String(order.customer || '').toLowerCase().includes(searchLower) ||
       String(order.mealPlan || '').toLowerCase().includes(searchLower)
 
     let matchesDate = true
-    if (filterDate) {
-      const formattedFilterDate = formatInputDate(filterDate)
+    if (appliedFilterDate) {
+      const formattedFilterDate = formatInputDate(appliedFilterDate)
       matchesDate = order.deliveryPreferredDate === formattedFilterDate
     }
 
@@ -132,28 +162,47 @@ export function Orders() {
       {/* Card wrapper for search & filter inputs + table */}
       <Card>
         {/* Card Header (Search & Date selectors) */}
-        <div className="p-4 border-b border-line bg-card flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" size={16} />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search Orders..."
-              className="h-10 pl-10 pr-4 rounded-control border border-line bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full transition-all text-ink placeholder:text-ink-soft"
-            />
-          </div>
-
-          <div className="relative shrink-0">
-            <input
-              type="date"
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              className="h-10 pl-3 pr-10 rounded-control border border-line bg-card text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all cursor-pointer w-full sm:w-48 appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:top-1/2 [&::-webkit-calendar-picker-indicator]:-translate-y-1/2 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-            />
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-ink-soft">
-              <CalendarDays size={18} />
+        <div className="p-4 border-b border-line bg-card flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row flex-1 gap-4">
+            <div className="relative w-full max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" size={16} />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
+                placeholder="Search Orders..."
+                className="h-10 pl-10 pr-4 rounded-control border border-line bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full transition-all text-ink placeholder:text-ink-soft"
+              />
             </div>
+
+            <div className="relative shrink-0">
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
+                className="h-10 pl-3 pr-10 rounded-control border border-line bg-card text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all cursor-pointer w-full sm:w-48 appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:top-1/2 [&::-webkit-calendar-picker-indicator]:-translate-y-1/2 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-ink-soft">
+                <CalendarDays size={18} />
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex gap-2 shrink-0">
+            <button 
+              onClick={handleClearFilters}
+              className="h-10 px-4 text-sm font-semibold text-ink-soft bg-canvas hover:bg-canvas/80 border border-line rounded-control transition-colors"
+            >
+              Clear
+            </button>
+            <button 
+              onClick={handleApplyFilters}
+              className="h-10 px-4 text-sm font-semibold text-white bg-primary hover:bg-primary/90 rounded-control transition-colors"
+            >
+              Apply Filter
+            </button>
           </div>
         </div>
 
@@ -218,32 +267,22 @@ export function Orders() {
                       {/* Actions */}
                       <td className="px-6 py-5 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {order.status === 'PENDING' ? (
-                            <>
-                              <button
-                                disabled={!canChange}
-                                onClick={() => handleUpdateStatus(order.id, 'ACCEPTED')}
-                                className="bg-[#14b8a6] hover:bg-[#14b8a6]/95 text-white font-semibold text-xs px-4 py-1.5 rounded-control transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                              >
-                                Accept
-                              </button>
-                              <button
-                                disabled={!canChange}
-                                onClick={() => handleUpdateStatus(order.id, 'REJECTED')}
-                                className="bg-[#9f1239] hover:bg-[#9f1239]/90 text-white font-semibold text-xs px-4 py-1.5 rounded-control transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                              >
-                                Reject
-                              </button>
-                            </>
-                          ) : order.status === 'ACCEPTED' ? (
-                            <Badge variant="success" className="px-3 py-1 text-xs font-semibold rounded-md">
-                              Accepted
-                            </Badge>
-                          ) : (
-                            <Badge variant="danger" className="px-3 py-1 text-xs font-semibold rounded-md">
-                              Rejected
-                            </Badge>
+                          {updatingIds.has(order.id) && (
+                            <Loader2 size={14} className="animate-spin text-ink-soft" />
                           )}
+                          <select
+                            disabled={!canChange || updatingIds.has(order.id)}
+                            value={order.status}
+                            onChange={(e) => handleUpdateStatus(order.id, e.target.value as OrderStatus)}
+                            className={`text-xs font-semibold px-2 py-1.5 rounded-md border focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 cursor-pointer transition-colors ${
+                              order.status === 'DELIVERED'
+                                ? 'bg-green-100 text-green-800 border-green-200'
+                                : 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                            }`}
+                          >
+                            <option value="PENDING">Pending</option>
+                            <option value="DELIVERED">Delivered</option>
+                          </select>
                         </div>
                       </td>
                     </tr>
