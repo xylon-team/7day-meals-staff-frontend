@@ -1,5 +1,5 @@
 'use client'
 
-import { Orders } from '@/pages/orders/page'
+import { OrderStatusPage } from '@/pages/orders/page'
 
-export default Orders
+export default OrderStatusPage

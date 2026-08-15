@@ -7,6 +7,7 @@ import {
   Check,
   CalendarDays,
   Loader2,
+  ClipboardList,
 } from 'lucide-react'
 import { useUserStore } from '@/store/user-store'
 import { usePermission } from '@/lib/use-permission'
@@ -14,29 +15,44 @@ import { getOrders, updateOrderStatus } from '@/lib/api/orders'
 import { Order, OrderStatus } from '@/lib/types/orders'
 import { Card } from '@/components/Card'
 
-// Helper to format date input "2023-10-24" into "Oct 24, 2023" to match mock data
 const formatInputDate = (dateStr: string): string => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
   if (isNaN(date.getTime())) return ''
-
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  const month = months[date.getMonth()]
-  const day = date.getDate()
-  const year = date.getFullYear()
-
-  return `${month} ${day}, ${year}`
+  return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
 }
 
-export function Orders() {
+const statusConfig: Record<string, { label: string; className: string }> = {
+  ACCEPTED: {
+    label: 'Accepted',
+    className: 'bg-blue-100 text-blue-800 border-blue-200',
+  },
+  PREPARING: {
+    label: 'Preparing',
+    className: 'bg-orange-100 text-orange-800 border-orange-200',
+  },
+  DELIVERED: {
+    label: 'Delivered',
+    className: 'bg-green-100 text-green-800 border-green-200',
+  },
+  PENDING: {
+    label: 'Pending',
+    className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  },
+  REJECTED: {
+    label: 'Rejected',
+    className: 'bg-red-100 text-red-800 border-red-200',
+  },
+}
+
+export function OrderStatusPage() {
   const router = useRouter()
   const { user } = useUserStore()
 
-  // Permissions check
   const canView = usePermission('orders')
   const canChange = usePermission('orders', 'change')
 
-  // Redirection guard
   useEffect(() => {
     if (!user) {
       router.push('/login')
@@ -45,30 +61,26 @@ export function Orders() {
     }
   }, [user, canView, router])
 
-  // Component States
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [filterDate, setFilterDate] = useState('') 
-  
+  const [filterDate, setFilterDate] = useState('')
   const [appliedSearchQuery, setAppliedSearchQuery] = useState('')
   const [appliedFilterDate, setAppliedFilterDate] = useState('')
-  
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set())
 
   const showToast = useCallback((message: string) => {
     setToastMessage(message)
-    setTimeout(() => {
-      setToastMessage(null)
-    }, 3000)
+    setTimeout(() => setToastMessage(null), 3000)
   }, [])
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
     try {
       const data = await getOrders()
-      setOrders(data)
+      // Only show ACCEPTED, PREPARING, or DELIVERED orders on the Order Status page
+      setOrders(data.filter((o) => o.status === 'ACCEPTED' || o.status === 'PREPARING' || o.status === 'DELIVERED'))
     } catch (err) {
       console.error('Error fetching orders:', err)
       showToast('Failed to load orders.')
@@ -77,29 +89,23 @@ export function Orders() {
     }
   }, [showToast])
 
-  // Fetch orders on load
   useEffect(() => {
     if (user && canView) {
-      Promise.resolve().then(() => {
-        fetchOrders()
-      })
+      Promise.resolve().then(() => fetchOrders())
     }
   }, [user, canView, fetchOrders])
 
   const handleUpdateStatus = async (id: string, newStatus: OrderStatus) => {
-    // Optimistically update the single row in state immediately
     const previousOrders = orders
     setOrders((prev) =>
       prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o))
     )
-    // Mark this row as updating
     setUpdatingIds((prev) => new Set(prev).add(id))
     try {
       await updateOrderStatus(id, { status: newStatus })
       showToast(`Order #${id} status updated to ${newStatus.toLowerCase()}.`)
     } catch (err) {
       console.error('Error updating status:', err)
-      // Revert on failure
       setOrders(previousOrders)
       showToast(`Failed to update status for order #${id}.`)
     } finally {
@@ -110,7 +116,7 @@ export function Orders() {
       })
     }
   }
-  
+
   const handleApplyFilters = () => {
     setAppliedSearchQuery(searchQuery)
     setAppliedFilterDate(filterDate)
@@ -123,7 +129,6 @@ export function Orders() {
     setAppliedFilterDate('')
   }
 
-  // Filter logic
   const filteredOrders = orders.filter((order) => {
     const searchLower = appliedSearchQuery.toLowerCase()
     const matchesSearch =
@@ -140,7 +145,6 @@ export function Orders() {
     return matchesSearch && matchesDate
   })
 
-  // Avoid loading screen / flash if unauthorized
   if (!user || !canView) return null
 
   return (
@@ -153,15 +157,37 @@ export function Orders() {
         </div>
       )}
 
-      {/* Header & Subtitle */}
+      {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-ink">Orders</h2>
-        <p className="text-ink-soft text-sm mt-1">Track and manage customer orders</p>
+        <div className="flex items-center gap-2">
+          <ClipboardList size={22} className="text-primary" />
+          <h2 className="text-2xl font-bold text-ink">Order Status</h2>
+        </div>
+        <p className="text-ink-soft text-sm mt-1">
+          Manage delivery status for accepted orders
+        </p>
       </div>
 
-      {/* Card wrapper for search & filter inputs + table */}
+      {/* Summary chips */}
+      {!loading && (
+        <div className="flex flex-wrap items-center gap-2">
+          {(['ACCEPTED', 'PREPARING', 'DELIVERED'] as const).map((s) => {
+            const count = orders.filter((o) => o.status === s).length
+            const cfg = statusConfig[s]
+            return (
+              <span
+                key={s}
+                className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border ${cfg.className}`}
+              >
+                {cfg.label}: {count}
+              </span>
+            )
+          })}
+        </div>
+      )}
+
       <Card>
-        {/* Card Header (Search & Date selectors) */}
+        {/* Search & Date Filter */}
         <div className="p-4 border-b border-line bg-card flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row flex-1 gap-4">
             <div className="relative w-full max-w-md">
@@ -189,15 +215,15 @@ export function Orders() {
               </div>
             </div>
           </div>
-          
+
           <div className="flex gap-2 shrink-0">
-            <button 
+            <button
               onClick={handleClearFilters}
               className="h-10 px-4 text-sm font-semibold text-ink-soft bg-canvas hover:bg-canvas/80 border border-line rounded-control transition-colors"
             >
               Clear
             </button>
-            <button 
+            <button
               onClick={handleApplyFilters}
               className="h-10 px-4 text-sm font-semibold text-white bg-primary hover:bg-primary/90 rounded-control transition-colors"
             >
@@ -206,25 +232,24 @@ export function Orders() {
           </div>
         </div>
 
-        {/* Loading Indicator */}
+        {/* Loading */}
         {loading ? (
           <div className="p-12 flex flex-col items-center justify-center gap-2 text-ink-soft">
             <Loader2 className="animate-spin text-primary" size={24} />
             <span className="text-sm font-medium">Loading orders...</span>
           </div>
         ) : (
-          /* Table Layout */
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left border-collapse">
               <thead>
                 <tr className="bg-canvas border-b border-line text-ink-soft text-[11px] font-bold uppercase tracking-wider">
-                  <th className="px-6 py-4 w-[120px]">Order ID</th>
+                  <th className="px-6 py-4 w-[110px]">Order ID</th>
                   <th className="px-6 py-4">Customer</th>
                   <th className="px-6 py-4">Meal Plan</th>
                   <th className="px-6 py-4 w-[110px]">Total</th>
                   <th className="px-6 py-4 w-[200px]">Delivery Preferred Date</th>
                   <th className="px-6 py-4 w-[140px]">Date</th>
-                  <th className="px-6 py-4 text-right w-[200px]">Actions</th>
+                  <th className="px-6 py-4 text-right w-[200px]">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line bg-card">
@@ -236,7 +261,7 @@ export function Orders() {
                         {order.id}
                       </td>
 
-                      {/* Customer Name */}
+                      {/* Customer */}
                       <td className="px-6 py-5 font-bold text-ink text-sm">
                         {order.customer}
                       </td>
@@ -250,7 +275,9 @@ export function Orders() {
                       <td className="px-6 py-5 whitespace-nowrap">
                         <div className="flex flex-col">
                           <span className="text-[10px] font-semibold text-ink-soft leading-none">Rs.</span>
-                          <span className="text-sm font-bold text-ink mt-0.5">{order.total.toLocaleString()}</span>
+                          <span className="text-sm font-bold text-ink mt-0.5">
+                            {order.total.toLocaleString()}
+                          </span>
                         </div>
                       </td>
 
@@ -264,7 +291,7 @@ export function Orders() {
                         {order.date}
                       </td>
 
-                      {/* Actions */}
+                      {/* Status Dropdown */}
                       <td className="px-6 py-5 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-2">
                           {updatingIds.has(order.id) && (
@@ -273,14 +300,16 @@ export function Orders() {
                           <select
                             disabled={!canChange || updatingIds.has(order.id)}
                             value={order.status}
-                            onChange={(e) => handleUpdateStatus(order.id, e.target.value as OrderStatus)}
+                            onChange={(e) =>
+                              handleUpdateStatus(order.id, e.target.value as OrderStatus)
+                            }
                             className={`text-xs font-semibold px-2 py-1.5 rounded-md border focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 cursor-pointer transition-colors ${
-                              order.status === 'DELIVERED'
-                                ? 'bg-green-100 text-green-800 border-green-200'
-                                : 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                              statusConfig[order.status]?.className ||
+                              'bg-yellow-100 text-yellow-800 border-yellow-200'
                             }`}
                           >
-                            <option value="PENDING">Pending</option>
+                            <option value="ACCEPTED">Accepted</option>
+                            <option value="PREPARING">Preparing</option>
                             <option value="DELIVERED">Delivered</option>
                           </select>
                         </div>
@@ -289,8 +318,14 @@ export function Orders() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-ink-soft">
-                      No orders found matching your filters.
+                    <td colSpan={7} className="px-6 py-16 text-center">
+                      <div className="flex flex-col items-center gap-3 text-ink-soft">
+                        <ClipboardList size={36} className="opacity-30" />
+                        <p className="text-sm font-medium">No accepted orders found.</p>
+                        <p className="text-xs opacity-70">
+                          Accept orders from the New Orders page to see them here.
+                        </p>
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -303,4 +338,4 @@ export function Orders() {
   )
 }
 
-export default Orders
+export default OrderStatusPage

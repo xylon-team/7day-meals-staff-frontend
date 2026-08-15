@@ -134,9 +134,15 @@ const navConfig: NavSection[] = [
     label: 'Order Management',
     items: [
       {
-        name: 'Orders',
-        path: '/orders',
+        name: 'New Orders',
+        path: '/new-orders',
         icon: ShoppingBag,
+        permissionCode: 'orders',
+      },
+      {
+        name: 'Order Status',
+        path: '/orders',
+        icon: ClipboardList,
         permissionCode: 'orders',
       },
     ],
@@ -282,6 +288,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const getPageTitle = () => {
     if (pathname === '/profile') return 'My Profile'
+    if (pathname === '/new-orders') return 'New Orders'
+    if (pathname === '/orders') return 'Order Status'
     const allItems = navConfig.flatMap((c) => c.items)
     const item = allItems.find((i) => i.path === pathname)
     return item ? item.name : 'Dashboard'

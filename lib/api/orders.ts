@@ -29,7 +29,10 @@ const mapOrderResponse = (backendOrder: any): Order => {
   const mealPlanName = backendOrder.meal_plan?.item_name || backendOrder.meal_plan || backendOrder.mealPlan || (backendOrder.meal_id ? `Meal Plan #${backendOrder.meal_id}` : '');
   const totalAmount = backendOrder.meal_plan?.price || backendOrder.total || 0;
 
+  const validStatuses = ['PENDING', 'ACCEPTED', 'REJECTED', 'PREPARING', 'DELIVERED'];
   const rawStatus = backendOrder.order_status || backendOrder.status || 'PENDING';
+  const normalizedStatus = String(rawStatus).toUpperCase();
+  const status = validStatuses.includes(normalizedStatus) ? normalizedStatus : 'PENDING';
 
   return {
     id: String(backendOrder.order_id || backendOrder.id || ''),
@@ -38,7 +41,7 @@ const mapOrderResponse = (backendOrder: any): Order => {
     total: Number(totalAmount),
     deliveryPreferredDate: backendOrder.delivery_preferred_date ? formatDate(backendOrder.delivery_preferred_date) : backendOrder.deliveryPreferredDate || '',
     date: backendOrder.order_timestamp ? formatDate(backendOrder.order_timestamp) : backendOrder.order_date || backendOrder.date || '',
-    status: String(rawStatus).toUpperCase() as 'PENDING' | 'DELIVERED',
+    status: status as 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'PREPARING' | 'DELIVERED',
   };
 };
 
