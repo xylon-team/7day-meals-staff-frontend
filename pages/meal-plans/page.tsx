@@ -8,7 +8,7 @@ import { Badge } from '@/components/Badge'
 import {
   Plus, Edit2, Trash2, CalendarDays, Loader2, Check, ChevronDown, UtensilsCrossed,
 } from 'lucide-react'
-import { getMealPlans, updateMealPlan, deleteMealPlan } from '@/lib/api/meal-plans'
+import { getMealPlans, updateMealPlan, deleteMealPlan, deactivateMealPlan } from '@/lib/api/meal-plans'
 import { MealPlan, MealPlanFoodItem } from '@/lib/types/meal-plans'
 import { getMeals } from '@/lib/api/meals'
 import { Meal } from '@/lib/types/meals'
@@ -256,16 +256,39 @@ export function MealPlans() {
       setMealPlans(prev => prev.filter(p => p.id !== id))
       showToast('Meal plan deleted successfully!')
       setDeleteConfirm(null)
-    } catch (err) {
-      console.error(err)
-      showToast('Failed to delete meal plan')
+      if (editingPlan && editingPlan.id === id) {
+        setEditingPlan(null)
+      }
+    } catch (err: any) {
+      if (err.status === 409 || err.message === 'CONFLICT') {
+        showToast('Plan is in use. Deactivating instead...')
+        try {
+          await deactivateMealPlan(id)
+          setMealPlans(prev => prev.map(p => (p.id === id ? { ...p, is_available: false } : p)))
+          showToast('Meal plan deactivated successfully!')
+          setDeleteConfirm(null)
+          if (editingPlan && editingPlan.id === id) {
+            setEditIsAvailable(false)
+          }
+        } catch (deactivateErr) {
+          console.error(deactivateErr)
+          showToast('Failed to deactivate meal plan')
+        }
+      } else {
+        console.error(err)
+        showToast('Failed to delete meal plan')
+      }
     }
   }
 
   const handleToggleAvailability = async (id: number, currentStatus: boolean, name: string) => {
     try {
       const newStatus = !currentStatus
-      await updateMealPlan(id, { is_available: newStatus })
+      if (newStatus === false) {
+        await deactivateMealPlan(id)
+      } else {
+        await updateMealPlan(id, { is_available: newStatus })
+      }
       setMealPlans(prev => prev.map(p => (p.id === id ? { ...p, is_available: newStatus } : p)))
       showToast(`"${name}" is now ${newStatus ? 'Active' : 'Draft'}.`)
     } catch (err) {
@@ -350,6 +373,14 @@ export function MealPlans() {
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold text-ink">Update Meal Plan</h2>
           <div className="space-x-3 flex items-center">
+            {canDelete && (
+              <button
+                onClick={() => setDeleteConfirm(editingPlan.id)}
+                className="text-sm font-semibold text-red-500 hover:text-red-700 hover:underline cursor-pointer bg-transparent border-0 outline-none px-4 py-2"
+              >
+                Delete
+              </button>
+            )}
             <button
               onClick={() => setEditingPlan(null)}
               className="text-sm font-semibold text-[#0d7377] hover:text-[#0a5c60] hover:underline cursor-pointer bg-transparent border-0 outline-none px-4 py-2"
