@@ -149,15 +149,45 @@ export function Meals() {
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
-    if (!mealName.trim()) {
+    const trimmedName = mealName.trim()
+    const trimmedIngredients = mealIngredients.trim()
+    const trimmedPrice = mealPrice.trim()
+
+    // 1. Validate Meal Name
+    if (!trimmedName) {
       newErrors.name = 'Meal name is required.'
+    } else if (trimmedName.length < 3) {
+      newErrors.name = 'Meal name must be at least 3 characters long.'
+    } else {
+      const duplicate = meals.some(
+        (m) => m.name.toLowerCase() === trimmedName.toLowerCase() && m.id !== mealEditing?.id
+      )
+      if (duplicate) {
+        newErrors.name = 'A meal with this name already exists.'
+      }
     }
-    if (!mealIngredients.trim()) {
-      newErrors.ingredients = 'Ingredients are required.'
+
+    // 2. Validate Ingredients List
+    if (!trimmedIngredients) {
+      newErrors.ingredients = 'Ingredients list is required.'
+    } else if (trimmedIngredients.length < 3) {
+      newErrors.ingredients = 'Ingredients must be at least 3 characters long.'
     }
-    if (!mealPrice || isNaN(Number(mealPrice)) || Number(mealPrice) <= 0) {
-      newErrors.price = 'Price must be a positive number.'
+
+    // 3. Validate Price
+    if (!trimmedPrice) {
+      newErrors.price = 'Price is required.'
+    } else {
+      const numericPrice = Number(trimmedPrice)
+      if (isNaN(numericPrice)) {
+        newErrors.price = 'Price must be a valid number.'
+      } else if (numericPrice <= 0) {
+        newErrors.price = 'Price must be greater than Rs. 0.00.'
+      } else if (numericPrice > 100000) {
+        newErrors.price = 'Price cannot exceed Rs. 100,000.'
+      }
     }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
