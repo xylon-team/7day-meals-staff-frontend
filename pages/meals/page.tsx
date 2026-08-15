@@ -664,6 +664,29 @@ export function Meals() {
                     className="hidden"
                   />
                 </div>
+
+                {/* Availability & Vegetarian Checkboxes */}
+                <div className="flex flex-wrap items-center gap-6 pt-1">
+                  <label className="flex items-center gap-2.5 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={mealIsAvailable}
+                      onChange={(e) => setMealIsAvailable(e.target.checked)}
+                      className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-[#0d7377]"
+                    />
+                    <span className="text-sm font-medium text-ink">Available for orders</span>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={mealIsVeg}
+                      onChange={(e) => setMealIsVeg(e.target.checked)}
+                      className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-[#0d7377]"
+                    />
+                    <span className="text-sm font-medium text-ink">Vegetarian</span>
+                  </label>
+                </div>
               </CardContent>
               <div className="px-6 py-4 border-t border-line flex justify-end items-center gap-3 bg-card">
                 <button
