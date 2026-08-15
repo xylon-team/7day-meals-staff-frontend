@@ -8,16 +8,7 @@ const getAuthHeaders = (): Record<string, string> => {
     'Content-Type': 'application/json',
   };
   if (typeof window !== 'undefined') {
-    let token = useUserStore.getState().user?.accessToken;
-    const role = useUserStore.getState().user?.role;
-
-    if (!token || (role && role !== 'Admin')) {
-      const adminToken = await getAdminToken();
-      if (adminToken) {
-        token = adminToken;
-      }
-    }
-
+    const token = useUserStore.getState().user?.accessToken;
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
@@ -31,70 +22,62 @@ const mockMealPlans: MealPlan[] = [
   {
     id: 1,
     name: 'Standard Office Week',
+    category: 'Standard',
     description: 'A balanced weekly plan for office employees.',
     dietary_preference: 'Vegetarian',
-    is_active: true,
-    calculated_price: 9800,
-    created_at: '2026-08-01',
-    daily_meals: {
-      Monday: { breakfast: 'String Hoppers', lunch: 'Rice & Curry', dinner: 'Kottu' },
-      Tuesday: { breakfast: 'Milk Rice', lunch: 'Chicken Fried Rice', dinner: 'Noodles' },
-      Wednesday: { breakfast: 'String Hoppers', lunch: 'Rice & Curry', dinner: 'Kottu' },
-      Thursday: { breakfast: 'Milk Rice', lunch: 'Chicken Fried Rice', dinner: 'Noodles' },
-      Friday: { breakfast: 'String Hoppers', lunch: 'Rice & Curry', dinner: 'Kottu' },
-      Saturday: { breakfast: 'Milk Rice', lunch: 'Chicken Fried Rice', dinner: 'Noodles' },
-      Sunday: { breakfast: 'String Hoppers', lunch: 'Rice & Curry', dinner: 'Kottu' },
-    },
+    is_available: true,
+    price: 9800,
+    food_items: [],
   },
   {
     id: 2,
     name: 'Vegan Boost',
+    category: 'Vegan',
     description: 'Plant-based high-protein plan.',
     dietary_preference: 'Vegan',
-    is_active: true,
-    calculated_price: 10500,
-    created_at: '2026-08-05',
-    daily_meals: {
-      Monday: { breakfast: 'String Hoppers', lunch: 'Rice & Curry', dinner: 'Noodles' },
-      Tuesday: { breakfast: 'Milk Rice', lunch: 'Rice & Curry', dinner: 'Noodles' },
-      Wednesday: { breakfast: 'String Hoppers', lunch: 'Rice & Curry', dinner: 'Noodles' },
-      Thursday: { breakfast: 'Milk Rice', lunch: 'Rice & Curry', dinner: 'Noodles' },
-      Friday: { breakfast: 'String Hoppers', lunch: 'Rice & Curry', dinner: 'Noodles' },
-      Saturday: { breakfast: 'Milk Rice', lunch: 'Rice & Curry', dinner: 'Noodles' },
-      Sunday: { breakfast: 'String Hoppers', lunch: 'Rice & Curry', dinner: 'Noodles' },
-    },
+    is_available: true,
+    price: 10500,
+    food_items: [],
   },
   {
     id: 3,
     name: 'Gluten Free Delight',
+    category: 'Special',
     description: 'Special dietary plan with no gluten ingredients.',
     dietary_preference: 'Gluten-Free',
-    is_active: false,
-    calculated_price: 11200,
-    created_at: '2026-08-10',
-    daily_meals: {
-      Monday: { breakfast: 'Milk Rice', lunch: 'Rice & Curry', dinner: 'Noodles' },
-      Tuesday: { breakfast: 'Milk Rice', lunch: 'Rice & Curry', dinner: 'Noodles' },
-      Wednesday: { breakfast: 'Milk Rice', lunch: 'Rice & Curry', dinner: 'Noodles' },
-      Thursday: { breakfast: 'Milk Rice', lunch: 'Rice & Curry', dinner: 'Noodles' },
-      Friday: { breakfast: 'Milk Rice', lunch: 'Rice & Curry', dinner: 'Noodles' },
-      Saturday: { breakfast: 'Milk Rice', lunch: 'Rice & Curry', dinner: 'Noodles' },
-      Sunday: { breakfast: 'Milk Rice', lunch: 'Rice & Curry', dinner: 'Noodles' },
-    },
+    is_available: false,
+    price: 11200,
+    food_items: [],
   },
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mapBackendMealPlan = (item: any): MealPlan => {
+const mapMealPlanResponse = (backendPlan: any): MealPlan => {
   return {
-    id: item.meal_id || item.id,
-    name: item.item_name || item.name || 'Unnamed Plan',
-    description: item.description || '',
-    dietary_preference: item.dietary_preference || item.category || 'General',
-    calculated_price: Number(item.price) || Number(item.calculated_price) || 0,
-    is_active: item.is_available !== undefined ? item.is_available : (item.is_active ?? true),
-    created_at: item.created_at || new Date().toISOString().split('T')[0],
-    daily_meals: item.daily_meals || {},
+    id: backendPlan.meal_id || backendPlan.id,
+    name: backendPlan.item_name || backendPlan.name || 'Unnamed Plan',
+    category: backendPlan.category || '',
+    description: backendPlan.description || '',
+    dietary_preference: backendPlan.dietary_preference || '',
+    price: Number(backendPlan.price) || 0,
+    is_available: backendPlan.is_available !== undefined 
+      ? backendPlan.is_available 
+      : true,
+    image_url: backendPlan.image_path || backendPlan.image_url || undefined,
+    food_items: backendPlan.food_items?.map((fi: any) => ({
+      meal_id: fi.meal_id,
+      food_item_id: fi.food_item_id,
+      day: fi.day,
+      meal_type: fi.meal_type,
+      food_item: fi.food_item ? {
+        id: fi.food_item.food_item_id,
+        name: fi.food_item.item_name,
+        ingredients: fi.food_item.ingredient_list,
+        price: Number(fi.food_item.price),
+        is_available: fi.food_item.is_available,
+        image_url: fi.food_item.image_path,
+      } : undefined
+    })) || []
   };
 };
 
@@ -111,7 +94,7 @@ export const getMealPlans = async (): Promise<MealPlan[]> => {
     }
     const data = await response.json();
     if (Array.isArray(data)) {
-      return data.map(mapBackendMealPlan);
+      return data.map(mapMealPlanResponse);
     }
     return [...mockMealPlans];
   } catch (error) {
