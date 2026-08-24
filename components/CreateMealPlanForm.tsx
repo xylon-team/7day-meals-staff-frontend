@@ -127,6 +127,7 @@ export function CreateMealPlanForm() {
     const [breakfastOptions, setBreakfastOptions] = useState<string[]>(DEFAULT_BREAKFAST_OPTIONS)
     const [lunchOptions, setLunchOptions] = useState<string[]>(DEFAULT_LUNCH_OPTIONS)
     const [dinnerOptions, setDinnerOptions] = useState<string[]>(DEFAULT_DINNER_OPTIONS)
+    const [allMeals, setAllMeals] = useState<any[]>([])
 
     // Daily Meal Selections State
     const [dailyMeals, setDailyMeals] = useState<Record<string, DayPlan>>(EMPTY_WEEK)
@@ -135,6 +136,7 @@ export function CreateMealPlanForm() {
     useEffect(() => {
         getMeals().then((meals) => {
             if (meals && meals.length > 0) {
+                setAllMeals(meals)
                 const prices: Record<string, number> = { ...DEFAULT_MEAL_PRICES }
                 const bOpts = new Set<string>(DEFAULT_BREAKFAST_OPTIONS)
                 const lOpts = new Set<string>(DEFAULT_LUNCH_OPTIONS)
@@ -204,13 +206,49 @@ export function CreateMealPlanForm() {
 
         setIsSaving(true)
         try {
+            const foodItemsPayload: { food_item_id: number; day: string; meal_type: string }[] = []
+            
+            Object.entries(dailyMeals).forEach(([day, dayPlan]) => {
+                if (dayPlan.breakfast) {
+                    const found = allMeals.find(m => m.name === dayPlan.breakfast)
+                    if (found) {
+                        foodItemsPayload.push({
+                            food_item_id: found.id,
+                            day,
+                            meal_type: 'Breakfast'
+                        })
+                    }
+                }
+                if (dayPlan.lunch) {
+                    const found = allMeals.find(m => m.name === dayPlan.lunch)
+                    if (found) {
+                        foodItemsPayload.push({
+                            food_item_id: found.id,
+                            day,
+                            meal_type: 'Lunch'
+                        })
+                    }
+                }
+                if (dayPlan.dinner) {
+                    const found = allMeals.find(m => m.name === dayPlan.dinner)
+                    if (found) {
+                        foodItemsPayload.push({
+                            food_item_id: found.id,
+                            day,
+                            meal_type: 'Dinner'
+                        })
+                    }
+                }
+            })
+
             await createMealPlan({
                 name: planName,
+                category: 'General',
                 description: description || 'No description provided.',
                 dietary_preference: dietaryPreference || 'General',
                 price: calculatedTotalPrice,
                 is_available: enablePlan,
-                daily_meals: dailyMeals,
+                food_items: foodItemsPayload,
             })
 
             triggerToast('Meal plan saved successfully!')

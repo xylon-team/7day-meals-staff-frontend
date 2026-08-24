@@ -7,6 +7,7 @@ export interface Order {
   total: number;
   deliveryPreferredDate: string;
   date: string;
+  orderTimestamp?: string;
   status: OrderStatus;
 }
 

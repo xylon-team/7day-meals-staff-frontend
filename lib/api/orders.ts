@@ -41,6 +41,7 @@ const mapOrderResponse = (backendOrder: any): Order => {
     total: Number(totalAmount),
     deliveryPreferredDate: backendOrder.delivery_preferred_date ? formatDate(backendOrder.delivery_preferred_date) : backendOrder.deliveryPreferredDate || '',
     date: backendOrder.order_timestamp ? formatDate(backendOrder.order_timestamp) : backendOrder.order_date || backendOrder.date || '',
+    orderTimestamp: backendOrder.order_timestamp || backendOrder.order_date || backendOrder.date || '',
     status: status as 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'PREPARING' | 'DELIVERED',
   };
 };
@@ -53,6 +54,7 @@ const mockOrders: Order[] = [
     total: 5500,
     deliveryPreferredDate: 'Oct 24, 2023',
     date: 'Today',
+    orderTimestamp: new Date().toISOString(),
     status: 'PENDING',
   },
   {
@@ -62,6 +64,7 @@ const mockOrders: Order[] = [
     total: 21000,
     deliveryPreferredDate: 'Oct 25, 2023',
     date: 'Yesterday',
+    orderTimestamp: new Date(Date.now() - 86400000).toISOString(),
     status: 'PENDING',
   },
   {
@@ -71,6 +74,7 @@ const mockOrders: Order[] = [
     total: 3200,
     deliveryPreferredDate: 'Oct 24, 2023',
     date: 'Yesterday',
+    orderTimestamp: new Date(Date.now() - 86400000 - 3600000).toISOString(),
     status: 'PENDING',
   },
   {
@@ -80,6 +84,7 @@ const mockOrders: Order[] = [
     total: 12450,
     deliveryPreferredDate: 'Oct 26, 2023',
     date: 'Oct 22, 2023',
+    orderTimestamp: new Date('2023-10-22T10:00:00Z').toISOString(),
     status: 'PENDING',
   },
 ];
