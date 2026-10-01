@@ -51,13 +51,16 @@ export function SuppliersPage() {
   const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
-    fetchSupplierList()
-  }, [])
+    const timer = setTimeout(() => {
+      fetchSupplierList(searchQuery)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
-  const fetchSupplierList = async () => {
+  const fetchSupplierList = async (search?: string) => {
     setLoading(true)
     try {
-      const data = await getSuppliers()
+      const data = await getSuppliers(search)
       setSuppliers(data)
     } catch (err) {
       console.error('Failed to load suppliers:', err)
