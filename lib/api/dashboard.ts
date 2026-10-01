@@ -1,4 +1,4 @@
-import { AdminDashboardData } from '../types/dashboard';
+import { AdminDashboardData, InventoryDashboardData, LowStockAlertItem } from '../types/dashboard';
 import { useUserStore } from '@/store/user-store';
 import { adminLogin } from './login';
 
@@ -61,6 +61,86 @@ const defaultAdminStats: AdminDashboardData = {
   errors: [],
 };
 
+export const defaultLowStockAlerts: LowStockAlertItem[] = [
+  {
+    id: 1,
+    name: 'Red Onions',
+    currentQuantity: '5kg',
+    reorderLevel: '10kg',
+    supplier: 'Perera Distributors',
+  },
+  {
+    id: 2,
+    name: 'Chicken Breast',
+    currentQuantity: '12kg',
+    reorderLevel: '20kg',
+    supplier: 'Fresh Meats Co.',
+  },
+  {
+    id: 3,
+    name: 'Coconut Milk',
+    currentQuantity: '8L',
+    reorderLevel: '15L',
+    supplier: 'Lanka Grocers',
+  },
+];
+
+export const mockInventoryDashboardData: InventoryDashboardData = {
+  total_inventory_items: 245,
+  total_suppliers: 12,
+  low_stock_items: 18,
+  out_of_stock_items: 3,
+  pending_supplier_requests: 8,
+  recent_inventory_updates: [
+    {
+      stock_adjust_id: 1,
+      adjustment_type: 'Used',
+      quantity: -20,
+      entered_date: new Date().toISOString(),
+      remarks: 'Kitchen preparation',
+      inventory: { inventory_id: 1, ingredient_name: 'Basmati Rice' },
+      staff: { fname: 'Kamal', lname: 'Perera' },
+    },
+    {
+      stock_adjust_id: 2,
+      adjustment_type: 'Added',
+      quantity: 50,
+      entered_date: new Date().toISOString(),
+      remarks: 'New stock received',
+      inventory: { inventory_id: 1, ingredient_name: 'Basmati Rice' },
+      staff: { fname: 'Nimal', lname: 'Silva' },
+    },
+    {
+      stock_adjust_id: 3,
+      adjustment_type: 'Used',
+      quantity: -20,
+      entered_date: new Date().toISOString(),
+      remarks: 'Dinner service',
+      inventory: { inventory_id: 1, ingredient_name: 'Basmati Rice' },
+      staff: { fname: 'Kamal', lname: 'Perera' },
+    },
+    {
+      stock_adjust_id: 4,
+      adjustment_type: 'Added',
+      quantity: 50,
+      entered_date: new Date().toISOString(),
+      remarks: 'Supplier delivery',
+      inventory: { inventory_id: 1, ingredient_name: 'Basmati Rice' },
+      staff: { fname: 'Sunil', lname: 'Fernando' },
+    },
+    {
+      stock_adjust_id: 5,
+      adjustment_type: 'Used',
+      quantity: -20,
+      entered_date: new Date().toISOString(),
+      remarks: 'Lunch service',
+      inventory: { inventory_id: 1, ingredient_name: 'Basmati Rice' },
+      staff: { fname: 'Kamal', lname: 'Perera' },
+    },
+  ],
+  low_stock_alerts: defaultLowStockAlerts,
+};
+
 export const getAdminDashboardStats = async (): Promise<AdminDashboardData> => {
   const url = new URL(`${API_URL}/stats/admin-dashboard`);
   
@@ -97,3 +177,46 @@ export const getAdminDashboardStats = async (): Promise<AdminDashboardData> => {
     return defaultAdminStats;
   }
 };
+
+export const getInventoryDashboardStats = async (): Promise<InventoryDashboardData> => {
+  const url = `${API_URL}/stats/inventory-dashboard`;
+  
+  try {
+    const userToken = typeof window !== 'undefined' ? useUserStore.getState().user?.accessToken : null;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (userToken) {
+      headers['Authorization'] = `Bearer ${userToken}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+
+    const data = await response.json();
+    const lowStockCount = Number(data.low_stock_items ?? 0);
+    return {
+      total_inventory_items: Number(data.total_inventory_items ?? 0),
+      total_suppliers: Number(data.total_suppliers ?? 0),
+      low_stock_items: lowStockCount,
+      out_of_stock_items: Number(data.out_of_stock_items ?? 0),
+      pending_supplier_requests: Number(data.pending_supplier_requests ?? 0),
+      recent_inventory_updates: Array.isArray(data.recent_inventory_updates) ? data.recent_inventory_updates : [],
+      low_stock_alerts: data.low_stock_alerts
+        ? data.low_stock_alerts
+        : lowStockCount === 0
+          ? []
+          : defaultLowStockAlerts,
+    };
+  } catch (error) {
+    console.warn('Backend API unavailable or error fetching inventory dashboard stats, returning mock data:', error);
+    return mockInventoryDashboardData;
+  }
+};
+

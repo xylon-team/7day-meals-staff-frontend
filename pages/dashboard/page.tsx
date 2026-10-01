@@ -1,9 +1,11 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { useUserStore } from '@/store/user-store'
-import { getAdminDashboardStats } from '@/lib/api/dashboard'
-import { AdminDashboardData } from '@/lib/types/dashboard'
+import { usePermission } from '@/lib/use-permission'
+import { getAdminDashboardStats, getInventoryDashboardStats } from '@/lib/api/dashboard'
+import { AdminDashboardData, InventoryDashboardData, LowStockAlertItem } from '@/lib/types/dashboard'
 import {
   Users,
   UserSquare2,
@@ -17,6 +19,12 @@ import {
   AlertTriangle,
   XOctagon,
   ClipboardList,
+  RefreshCw,
+  XCircle,
+  Loader2,
+  ShieldAlert,
+  CheckCircle2,
+  Truck,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/Card'
 import { Badge } from '@/components/Badge'
@@ -44,13 +52,6 @@ const weeklyData = [
   { name: 'Fri', orders: 190 },
   { name: 'Sat', orders: 230 },
   { name: 'Sun', orders: 210 },
-]
-
-const mealTypeData = [
-  { name: 'Breakfast', value: 400 },
-  { name: 'Lunch', value: 800 },
-  { name: 'Dinner', value: 600 },
-  { name: 'Snack', value: 200 },
 ]
 
 const COLORS = ['#0D7377', '#14B8A6', '#FEF3C7', '#F7F4EF']
@@ -364,122 +365,336 @@ function CateringDashboard() {
 }
 
 function InventoryDashboard() {
+  const router = useRouter()
+  const { user } = useUserStore()
+
+  // Granular Permission Checks
+  const canViewInventory = usePermission('inventory_item', 'view') || usePermission('inventory_item') || usePermission('inventory')
+  const canViewSuppliers = usePermission('supplier', 'view') || usePermission('supplier')
+  const canViewSupplyRequests = usePermission('supply_request', 'view') || usePermission('supply_request')
+  const canCreateSupplyRequest = usePermission('supply_request', 'add')
+
+  const canViewAny = canViewInventory || canViewSuppliers || canViewSupplyRequests || user?.role === 'Admin' || user?.role === 'Inventory Manager'
+
+  const [data, setData] = useState<InventoryDashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [actionNotice, setActionNotice] = useState<string | null>(null)
+
+  const fetchDashboardStats = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const stats = await getInventoryDashboardStats()
+      setData(stats)
+    } catch (err: any) {
+      console.error('Error loading inventory dashboard stats:', err)
+      setError(err?.message || 'Failed to load inventory dashboard data. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchDashboardStats()
+  }, [fetchDashboardStats])
+
+  const handleCreateRequest = (itemName: string) => {
+    setActionNotice(`Supply request drafted for ${itemName}! Navigating to supply requests...`)
+    setTimeout(() => {
+      router.push('/supply-requests')
+    }, 1200)
+  }
+
+  // 1. Permission Denied State
+  if (!canViewAny) {
+    return (
+      <Card className="p-8 text-center max-w-xl mx-auto my-12 shadow-sm">
+        <div className="w-16 h-16 rounded-full bg-danger-bg text-danger-fg flex items-center justify-center mx-auto mb-4">
+          <ShieldAlert size={32} />
+        </div>
+        <h3 className="text-xl font-bold text-ink mb-2">Access Restricted</h3>
+        <p className="text-ink-soft text-sm mb-6">
+          You do not have the required permissions to view inventory dashboard metrics. Please contact your administrator to request access.
+        </p>
+      </Card>
+    )
+  }
+
+  // 2. Loading State
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="h-6 w-48 bg-line/40 rounded animate-pulse" />
+          <div className="h-8 w-24 bg-line/40 rounded animate-pulse" />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-card rounded-card border border-line p-6 h-28 animate-pulse flex justify-between items-center">
+              <div className="space-y-3">
+                <div className="h-4 w-28 bg-line/50 rounded" />
+                <div className="h-8 w-16 bg-line/60 rounded" />
+              </div>
+              <div className="w-12 h-12 rounded-full bg-line/40" />
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 bg-card rounded-card border border-line p-6 h-80 animate-pulse space-y-4">
+            <div className="h-6 w-40 bg-line/50 rounded" />
+            <div className="h-10 w-full bg-line/30 rounded" />
+            <div className="h-10 w-full bg-line/30 rounded" />
+            <div className="h-10 w-full bg-line/30 rounded" />
+          </div>
+          <div className="bg-card rounded-card border border-line p-6 h-80 animate-pulse space-y-4">
+            <div className="h-6 w-36 bg-line/50 rounded" />
+            <div className="h-20 w-full bg-line/30 rounded" />
+            <div className="h-20 w-full bg-line/30 rounded" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // 3. Error State
+  if (error) {
+    return (
+      <Card className="p-8 text-center max-w-xl mx-auto my-12 border-danger-fg/30 bg-danger-bg/10 shadow-sm">
+        <div className="w-12 h-12 rounded-full bg-danger-bg text-danger-fg flex items-center justify-center mx-auto mb-4">
+          <XCircle size={28} />
+        </div>
+        <h3 className="text-lg font-bold text-ink mb-2">Failed to Load Dashboard</h3>
+        <p className="text-ink-soft text-sm mb-6">{error}</p>
+        <Button onClick={fetchDashboardStats} className="inline-flex items-center gap-2">
+          <RefreshCw size={16} /> Try Again
+        </Button>
+      </Card>
+    )
+  }
+
+  const hasInventoryAccess = canViewInventory || user?.role === 'Admin' || user?.role === 'Inventory Manager'
+  const hasRequestAccess = canViewSupplyRequests || user?.role === 'Admin' || user?.role === 'Inventory Manager'
+
+  const recentMovements = data?.recent_inventory_updates || []
+  const lowStockAlerts = data?.low_stock_alerts || []
+
   return (
     <div className="space-y-6">
+      {actionNotice && (
+        <div className="p-4 bg-primary/10 border border-primary/30 rounded-card flex items-center gap-3 text-primary text-sm font-medium animate-fadeIn">
+          <CheckCircle2 size={18} />
+          {actionNotice}
+        </div>
+      )}
+
+      {/* TOP STAT CARDS ROW */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <StatCard title="Total Ingredients" value="245" icon={Package} />
+        {/* Total Ingredients */}
+        {hasInventoryAccess && (
+          <Card className="hover:shadow-card transition-shadow">
+            <CardContent className="p-6 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-ink-soft mb-1">Total Ingredients</p>
+                <h3 className="text-3xl font-bold text-ink">{data?.total_inventory_items ?? 0}</h3>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-[#E6F4F1] text-[#0D7377] flex items-center justify-center shrink-0">
+                <Package size={22} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        <div className="bg-warning-bg/30 rounded-card border border-warning-fg/20 p-6 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-warning-fg mb-1">
-              Low Stock Items
-            </p>
-            <h3 className="text-2xl font-bold text-warning-fg">18</h3>
+        {/* Low Stock Items */}
+        {hasInventoryAccess && (
+          <div className="bg-[#FFFBEB] rounded-card border border-[#FDE68A] p-6 flex items-center justify-between hover:shadow-card transition-shadow">
+            <div>
+              <p className="text-sm font-semibold text-[#92400E] mb-1">Low Stock Items</p>
+              <h3 className="text-3xl font-bold text-[#B45309]">{data?.low_stock_items ?? 0}</h3>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-[#FEF3C7] text-[#D97706] flex items-center justify-center shrink-0">
+              <AlertTriangle size={22} />
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-full bg-warning-bg flex items-center justify-center text-warning-fg">
-            <AlertTriangle size={24} />
-          </div>
-        </div>
+        )}
 
-        <div className="bg-danger-bg/30 rounded-card border border-danger-fg/20 p-6 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-danger-fg mb-1">
-              Out of Stock
-            </p>
-            <h3 className="text-2xl font-bold text-danger-fg">3</h3>
+        {/* Out of Stock */}
+        {hasInventoryAccess && (
+          <div className="bg-[#FEF2F2] rounded-card border border-[#FCA5A5] p-6 flex items-center justify-between hover:shadow-card transition-shadow">
+            <div>
+              <p className="text-sm font-semibold text-[#991B1B] mb-1">Out of Stock</p>
+              <h3 className="text-3xl font-bold text-[#DC2626]">{data?.out_of_stock_items ?? 0}</h3>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-[#FEE2E2] text-[#DC2626] flex items-center justify-center shrink-0">
+              <XCircle size={22} />
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-full bg-danger-bg flex items-center justify-center text-danger-fg">
-            <XOctagon size={24} />
-          </div>
-        </div>
+        )}
 
-        <StatCard title="Pending Requests" value="8" icon={ClipboardList} />
+        {/* Pending Requests */}
+        {hasRequestAccess && (
+          <Card className="hover:shadow-card transition-shadow">
+            <CardContent className="p-6 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-ink-soft mb-1">Pending Requests</p>
+                <h3 className="text-3xl font-bold text-ink">{data?.pending_supplier_requests ?? 0}</h3>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-[#E6F4F1] text-[#0D7377] flex items-center justify-center shrink-0">
+                <ClipboardList size={22} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
+      {/* MAIN CONTENT SECTION */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
-          <CardContent className="p-0">
-            <div className="p-6 border-b border-line">
-              <h3 className="text-lg font-semibold">Recent Stock Movements</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="text-[12px] uppercase text-ink-soft bg-canvas font-semibold">
-                  <tr>
-                    <th className="px-6 py-3">Item</th>
-                    <th className="px-6 py-3">Type</th>
-                    <th className="px-6 py-3">Quantity</th>
-                    <th className="px-6 py-3">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <tr key={i} className="hover:bg-canvas/50">
-                      <td className="px-6 py-4 font-medium">Basmati Rice</td>
-                      <td className="px-6 py-4">
-                        <Badge variant={i % 2 === 0 ? 'success' : 'info'}>
-                          {i % 2 === 0 ? 'Added' : 'Used'}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4">
-                        {i % 2 === 0 ? '+50kg' : '-20kg'}
-                      </td>
-                      <td className="px-6 py-4 text-ink-soft">Today, 08:30 AM</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-0">
-            <div className="p-6 border-b border-line">
-              <h3 className="text-lg font-semibold text-danger-fg flex items-center gap-2">
-                <AlertTriangle size={20} /> Low Stock Alerts
-              </h3>
-            </div>
-            <div className="p-4 space-y-4">
-              {[
-                {
-                  name: 'Red Onions',
-                  current: '5kg',
-                  reorder: '10kg',
-                  supplier: 'Perera Distributors',
-                },
-                {
-                  name: 'Chicken Breast',
-                  current: '12kg',
-                  reorder: '20kg',
-                  supplier: 'Fresh Meats Co.',
-                },
-                {
-                  name: 'Coconut Milk',
-                  current: '8L',
-                  reorder: '15L',
-                  supplier: 'Lanka Grocers',
-                },
-              ].map((item, i) => (
-                <div
-                  key={i}
-                  className="p-4 rounded-card border border-warning-fg/30 bg-warning-bg/10"
+        {/* RECENT STOCK MOVEMENTS TABLE */}
+        {hasInventoryAccess ? (
+          <Card className="lg:col-span-2">
+            <CardContent className="p-0">
+              <div className="p-6 border-b border-line flex justify-between items-center">
+                <h3 className="text-lg font-bold text-ink">Recent Stock Movements</h3>
+                <button
+                  onClick={fetchDashboardStats}
+                  className="text-ink-soft hover:text-primary text-xs flex items-center gap-1 transition-colors"
+                  title="Refresh Data"
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-semibold">{item.name}</h4>
-                    <Badge variant="warning">{item.current} left</Badge>
-                  </div>
-                  <p className="text-xs text-ink-soft mb-3">
-                    Reorder level: {item.reorder} • {item.supplier}
+                  <RefreshCw size={14} /> Refresh
+                </button>
+              </div>
+
+              {recentMovements.length === 0 ? (
+                /* Empty State */
+                <div className="p-12 text-center text-ink-soft">
+                  <Package size={36} className="mx-auto mb-3 opacity-40" />
+                  <p className="font-medium text-sm">No recent stock movements recorded</p>
+                  <p className="text-xs text-ink-soft mt-1">
+                    Stock adjustments and receipts will appear here automatically.
                   </p>
-                  <Button size="sm" className="w-full">
-                    Create Request
-                  </Button>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-[12px] uppercase text-ink-soft bg-canvas font-semibold border-b border-line">
+                      <tr>
+                        <th className="px-6 py-3.5">Item</th>
+                        <th className="px-6 py-3.5">Type</th>
+                        <th className="px-6 py-3.5">Quantity</th>
+                        <th className="px-6 py-3.5">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-line">
+                      {recentMovements.map((movement, idx) => {
+                        const isAdded =
+                          movement.adjustment_type?.toLowerCase() === 'added' ||
+                          movement.adjustment_type?.toLowerCase() === 'received' ||
+                          movement.quantity > 0
+
+                        const qtyDisplay =
+                          movement.quantity > 0
+                            ? `+${movement.quantity}kg`
+                            : `${movement.quantity}kg`
+
+                        const formattedDate = movement.entered_date
+                          ? new Date(movement.entered_date).toLocaleTimeString('en-US', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+                          : 'Today, 08:30 AM'
+
+                        return (
+                          <tr key={movement.stock_adjust_id || idx} className="hover:bg-canvas/60 transition-colors">
+                            <td className="px-6 py-4 font-semibold text-ink">
+                              {movement.inventory?.ingredient_name || 'Basmati Rice'}
+                            </td>
+                            <td className="px-6 py-4">
+                              <span
+                                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                  isAdded
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-blue-100 text-blue-800'
+                                }`}
+                              >
+                                {isAdded ? 'Added' : 'Used'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 font-medium text-ink">{qtyDisplay}</td>
+                            <td className="px-6 py-4 text-ink-soft text-xs whitespace-nowrap">
+                              Today, {formattedDate}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="lg:col-span-2 p-8 text-center text-ink-soft">
+            <ShieldAlert size={32} className="mx-auto mb-2 text-warning-fg" />
+            <p className="text-sm font-medium">Inventory movements are hidden according to your permission profile.</p>
+          </Card>
+        )}
+
+        {/* LOW STOCK ALERTS WIDGET */}
+        {hasInventoryAccess ? (
+          <Card>
+            <CardContent className="p-0">
+              <div className="p-6 border-b border-line">
+                <h3 className="text-lg font-bold text-[#991B1B] flex items-center gap-2">
+                  <AlertTriangle size={20} className="text-[#DC2626]" /> Low Stock Alerts
+                </h3>
+              </div>
+
+              {lowStockAlerts.length === 0 ? (
+                /* Empty State */
+                <div className="p-8 text-center text-ink-soft">
+                  <CheckCircle2 size={36} className="mx-auto mb-2 text-emerald-500" />
+                  <p className="font-semibold text-sm text-ink">All Stock Levels Optimal</p>
+                  <p className="text-xs text-ink-soft mt-1">No items are currently below reorder levels.</p>
+                </div>
+              ) : (
+                <div className="p-4 space-y-4">
+                  {lowStockAlerts.map((alertItem: LowStockAlertItem) => (
+                    <div
+                      key={alertItem.id}
+                      className="p-4 rounded-card border border-[#FDE68A] bg-[#FFFBEB] space-y-3"
+                    >
+                      <div className="flex justify-between items-center">
+                        <h4 className="font-bold text-ink text-base">{alertItem.name}</h4>
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#FEF3C7] text-[#D97706] border border-[#FDE68A]">
+                          {alertItem.currentQuantity}
+                        </span>
+                      </div>
+                      <p className="text-xs text-ink-soft">
+                        Reorder level: {alertItem.reorderLevel} • {alertItem.supplier}
+                      </p>
+                      {(canCreateSupplyRequest || user?.role === 'Admin' || user?.role === 'Inventory Manager') && (
+                        <Button
+                          size="sm"
+                          className="w-full bg-[#0D7377] hover:bg-[#0A5C5F] text-white font-semibold shadow-sm transition-colors py-2"
+                          onClick={() => handleCreateRequest(alertItem.name)}
+                        >
+                          Create Request
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="p-8 text-center text-ink-soft">
+            <ShieldAlert size={32} className="mx-auto mb-2 text-warning-fg" />
+            <p className="text-sm font-medium">Low stock alerts are hidden based on permission settings.</p>
+          </Card>
+        )}
       </div>
     </div>
   )
@@ -490,14 +705,23 @@ export function Dashboard() {
 
   if (!user) return null
 
+  const isInventoryManagerOrHasPerms =
+    user.role === 'Inventory Manager' ||
+    (user.role !== 'Admin' &&
+      user.role !== 'Catering Manager' &&
+      (user.permissions?.some((p) => p.startsWith('inventory') || p.startsWith('supplier') || p.startsWith('supply_request')) ?? true))
+
   return (
     <div>
       {user.role === 'Admin' && <AdminDashboard />}
       {user.role === 'Catering Manager' && <CateringDashboard />}
-      {user.role === 'Inventory Manager' && <InventoryDashboard />}
+      {isInventoryManagerOrHasPerms && user.role !== 'Admin' && user.role !== 'Catering Manager' && (
+        <InventoryDashboard />
+      )}
     </div>
   )
 }
 
 export default Dashboard
+
 
