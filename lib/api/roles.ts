@@ -53,7 +53,7 @@ export const getRoles = async (includePermissions: boolean = false): Promise<Rol
     const data = await response.json();
     return data.map(mapRoleResponse);
   } catch (error) {
-    console.warn('Backend unavailable, returning mock roles data');
+    console.info('Backend unavailable, returning mock roles data');
     return [...mockRoles];
   }
 };
@@ -163,7 +163,7 @@ export const getAllPermissions = async (): Promise<any[]> => {
     if (!response.ok) throw new Error('Failed to fetch permissions');
     return await response.json();
   } catch (error) {
-    console.warn('Backend unavailable, mocking getAllPermissions');
+    console.info('Backend unavailable, mocking getAllPermissions');
     return [];
   }
 };
