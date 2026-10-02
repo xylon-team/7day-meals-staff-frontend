@@ -185,12 +185,27 @@ export const getCustomerById = async (id: number | string): Promise<Customer> =>
   throw new Error(`Customer with id ${id} not found`);
 };
 
-export const updateCustomerStatus = async (
+export const deactivateCustomer = async (
   id: number | string,
-  isActive: boolean
+  existingCustomer?: Customer
 ): Promise<Customer> => {
-  // Update local state first
   const numId = Number(id);
+  const headers = await getAuthHeaders();
+
+  const response = await fetch(`${API_URL}/customer/${numId}/deactivate`, {
+    method: 'PATCH',
+    headers,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    throw new Error(`Failed to deactivate customer: ${response.status} ${errorText}`.trim());
+  }
+
+  const data = await response.json();
+  const isActive = Boolean(data.is_active);
+
+  // Update mock fallback array if present
   const index = mockCustomers.findIndex((c) => c.id === numId);
   if (index !== -1) {
     mockCustomers[index] = {
@@ -200,27 +215,92 @@ export const updateCustomerStatus = async (
     };
   }
 
+  if (existingCustomer) {
+    return {
+      ...existingCustomer,
+      isActive: false,
+      status: 'Inactive',
+    };
+  }
+
+  // If existingCustomer was not provided, fetch full customer by ID
+  try {
+    const fresh = await getCustomerById(numId);
+    return {
+      ...fresh,
+      isActive: false,
+      status: 'Inactive',
+    };
+  } catch {
+    return {
+      id: numId,
+      fname: '',
+      lname: '',
+      name: 'Customer',
+      email: '',
+      phone: '',
+      address: 'Not specified',
+      totalOrders: 0,
+      registeredDate: new Date().toISOString().split('T')[0],
+      isActive: false,
+      status: 'Inactive',
+    };
+  }
+};
+
+export const activateCustomer = async (
+  id: number | string,
+  existingCustomer?: Customer
+): Promise<Customer> => {
+  const numId = Number(id);
+  const index = mockCustomers.findIndex((c) => c.id === numId);
+  if (index !== -1) {
+    mockCustomers[index] = {
+      ...mockCustomers[index],
+      isActive: true,
+      status: 'Active',
+    };
+  }
+
   try {
     const headers = await getAuthHeaders();
-    const endpoint = !isActive ? `${API_URL}/customer/${id}/deactivate` : `${API_URL}/customer/${id}`;
-    const response = await fetch(endpoint, {
+    const response = await fetch(`${API_URL}/customer/${numId}`, {
       method: 'PATCH',
       headers,
-      body: isActive ? JSON.stringify({ is_active: true }) : undefined,
+      body: JSON.stringify({ is_active: true }),
     });
 
     if (response.ok) {
       const data = await response.json();
-      if (data && typeof data === 'object') {
+      if (data && typeof data === 'object' && data.fname) {
         return mapCustomerResponse(data);
       }
     }
   } catch (error) {
-    console.warn(`Failed to update customer status on backend for id ${id}:`, error);
+    console.warn(`Failed to activate customer on backend for id ${id}:`, error);
+  }
+
+  if (existingCustomer) {
+    return {
+      ...existingCustomer,
+      isActive: true,
+      status: 'Active',
+    };
   }
 
   if (index !== -1) {
     return { ...mockCustomers[index] };
   }
   throw new Error(`Customer with id ${id} not found`);
+};
+
+export const updateCustomerStatus = async (
+  id: number | string,
+  isActive: boolean,
+  existingCustomer?: Customer
+): Promise<Customer> => {
+  if (!isActive) {
+    return deactivateCustomer(id, existingCustomer);
+  }
+  return activateCustomer(id, existingCustomer);
 };
