@@ -14,7 +14,7 @@ import {
   Loader2,
   Filter,
 } from 'lucide-react'
-import { getCustomers, updateCustomerStatus } from '@/lib/api/customer'
+import { getCustomers, getCustomerById, updateCustomerStatus } from '@/lib/api/customer'
 import { Customer } from '@/lib/types/customer'
 import { Card } from '@/components/Card'
 import { cn } from '@/lib/utils'
@@ -54,6 +54,16 @@ export function CustomerDirectory() {
       showToast('Failed to load customer directory')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleViewProfile = async (customer: Customer) => {
+    setSelectedCustomer(customer)
+    try {
+      const detail = await getCustomerById(customer.id)
+      setSelectedCustomer(detail)
+    } catch (err) {
+      console.warn('Could not fetch updated customer detail:', err)
     }
   }
 
@@ -241,7 +251,7 @@ export function CustomerDirectory() {
                       <div className="flex items-center justify-end gap-3.5">
                         {/* Eye mark: Opens detailed customer profile drawer sliding from right */}
                         <button
-                          onClick={() => setSelectedCustomer(customer)}
+                          onClick={() => handleViewProfile(customer)}
                           className="text-ink-soft hover:text-primary transition-colors cursor-pointer p-1"
                           title="View customer profile"
                         >
