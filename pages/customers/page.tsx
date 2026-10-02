@@ -11,13 +11,31 @@ import {
   Calendar,
   ShoppingBag,
   Check,
+  CheckCircle2,
+  AlertTriangle,
+  AlertCircle,
   Loader2,
-  Filter,
 } from 'lucide-react'
-import { getCustomers, getCustomerById, updateCustomerStatus } from '@/lib/api/customer'
+import {
+  getCustomers,
+  getCustomerById,
+  deactivateCustomer,
+  activateCustomer,
+} from '@/lib/api/customer'
 import { Customer } from '@/lib/types/customer'
 import { Card } from '@/components/Card'
+import { Button } from '@/components/Button'
 import { cn } from '@/lib/utils'
+
+interface ToastState {
+  message: string
+  type: 'success' | 'error' | 'info'
+}
+
+interface ConfirmModalState {
+  customer: Customer
+  action: 'deactivate' | 'activate'
+}
 
 export function CustomerDirectory() {
   const router = useRouter()
@@ -26,23 +44,28 @@ export function CustomerDirectory() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'Active' | 'Inactive'>('ALL')
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [toast, setToast] = useState<ToastState | null>(null)
+  const [confirmModal, setConfirmModal] = useState<ConfirmModalState | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
   useEffect(() => {
     fetchCustomerList()
   }, [])
 
-  // Close profile on Escape key press
+  // Close modals on Escape key press (modal first, then profile drawer)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && selectedCustomer) {
-        setSelectedCustomer(null)
+      if (e.key === 'Escape') {
+        if (confirmModal && !actionLoading) {
+          setConfirmModal(null)
+        } else if (selectedCustomer && !confirmModal) {
+          setSelectedCustomer(null)
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedCustomer])
+  }, [confirmModal, selectedCustomer, actionLoading])
 
   const fetchCustomerList = async () => {
     setLoading(true)
@@ -51,7 +74,7 @@ export function CustomerDirectory() {
       setCustomers(data)
     } catch (err) {
       console.error('Failed to load customers:', err)
-      showToast('Failed to load customer directory')
+      showToast('Failed to load customer directory', 'error')
     } finally {
       setLoading(false)
     }
@@ -67,38 +90,64 @@ export function CustomerDirectory() {
     }
   }
 
-  const showToast = (message: string) => {
-    setToastMessage(message)
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ message, type })
     setTimeout(() => {
-      setToastMessage(null)
-    }, 3000)
+      setToast(null)
+    }, 3500)
   }
 
-  const handleToggleStatus = async (customer: Customer) => {
-    const newActiveState = !customer.isActive
+  const openConfirmModal = (customer: Customer, action: 'deactivate' | 'activate') => {
+    setConfirmModal({ customer, action })
+  }
+
+  // Executes status change after confirmation
+  const handleExecuteStatusChange = async () => {
+    if (!confirmModal) return
+
+    const { customer, action } = confirmModal
     setActionLoading(true)
+
     try {
-      const updated = await updateCustomerStatus(customer.id, newActiveState)
+      let updated: Customer
+      if (action === 'deactivate') {
+        updated = await deactivateCustomer(customer.id, customer)
+      } else {
+        updated = await activateCustomer(customer.id, customer)
+      }
+
+      // Update customers table state immediately
       setCustomers((prev) =>
         prev.map((c) => (c.id === updated.id ? updated : c))
       )
+
+      // Update active customer profile drawer if currently open
       if (selectedCustomer && selectedCustomer.id === updated.id) {
         setSelectedCustomer(updated)
       }
+
+      // Close modal on success
+      setConfirmModal(null)
+
+      // Deactivation / activation feedback message
       showToast(
-        newActiveState
-          ? `Account for ${customer.name} activated successfully!`
-          : `Account for ${customer.name} deactivated successfully!`
+        action === 'deactivate'
+          ? `Customer account for "${customer.name}" has been deactivated.`
+          : `Customer account for "${customer.name}" has been reactivated.`,
+        'success'
       )
-    } catch (error) {
-      console.error('Failed to update status:', error)
-      showToast('Failed to update customer status')
+    } catch (error: any) {
+      console.error(`Failed to ${action} customer:`, error)
+      const message =
+        error?.message ||
+        `Failed to ${action} customer "${customer.name}". Please try again.`
+      showToast(message, 'error')
     } finally {
       setActionLoading(false)
     }
   }
 
-  // Filter customers based on search and status
+  // Filter customers based on search query and status filter
   const filteredCustomers = customers.filter((c) => {
     const matchesSearch =
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -113,11 +162,26 @@ export function CustomerDirectory() {
 
   return (
     <div className="space-y-6">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2 bg-[#0d7377] text-white px-4 py-3 rounded-card shadow-lg animate-in fade-in slide-in-from-bottom-5 duration-300">
-          <Check size={18} />
-          <span className="text-sm font-semibold">{toastMessage}</span>
+      {/* Toast Feedback Notification */}
+      {toast && (
+        <div
+          className={cn(
+            'fixed bottom-5 right-5 z-70 flex items-center gap-3 px-4 py-3 rounded-lg shadow-xl text-white text-sm font-medium animate-in fade-in slide-in-from-bottom-5 duration-300',
+            toast.type === 'success' && 'bg-[#0d7377]',
+            toast.type === 'error' && 'bg-[#dc2626]',
+            toast.type === 'info' && 'bg-[#3b82f6]'
+          )}
+        >
+          {toast.type === 'success' && <CheckCircle2 size={18} className="shrink-0" />}
+          {toast.type === 'error' && <AlertTriangle size={18} className="shrink-0" />}
+          {toast.type === 'info' && <AlertCircle size={18} className="shrink-0" />}
+          <span>{toast.message}</span>
+          <button
+            onClick={() => setToast(null)}
+            className="text-white/80 hover:text-white ml-2 p-0.5 rounded cursor-pointer transition-colors"
+          >
+            <X size={15} />
+          </button>
         </div>
       )}
 
@@ -149,7 +213,7 @@ export function CustomerDirectory() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search customers..."
+              placeholder="Search customers by name, email, or phone..."
               className="w-full h-11 pl-10 pr-4 rounded-lg bg-[#f4f2ee] border-transparent text-sm text-ink placeholder:text-ink-soft/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
             />
           </div>
@@ -220,9 +284,11 @@ export function CustomerDirectory() {
                     {/* Contact (Email & Phone) */}
                     <td className="px-6 py-5 whitespace-nowrap">
                       <div className="flex flex-col">
-                        <span className="text-sm text-ink-soft">{customer.email}</span>
+                        <span className="text-sm text-ink-soft">
+                          {customer.email || 'No email provided'}
+                        </span>
                         <span className="text-xs text-ink-soft/90 mt-0.5">
-                          {customer.phone}
+                          {customer.phone || 'No phone'}
                         </span>
                       </div>
                     </td>
@@ -232,45 +298,58 @@ export function CustomerDirectory() {
                       {customer.totalOrders}
                     </td>
 
-                    {/* Status Badge */}
+                    {/* Status Badge with Dot Indicator */}
                     <td className="px-6 py-5 whitespace-nowrap">
                       <span
                         className={cn(
-                          'inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold',
+                          'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold',
                           customer.isActive
                             ? 'bg-[#d1fae5] text-[#065f46]'
-                            : 'bg-[#e5e7eb] text-[#4b5563]'
+                            : 'bg-[#fee2e2] text-[#991b1b]'
                         )}
                       >
-                        {customer.status}
+                        <span
+                          className={cn(
+                            'w-1.5 h-1.5 rounded-full',
+                            customer.isActive ? 'bg-[#10b981]' : 'bg-[#ef4444]'
+                          )}
+                        />
+                        {customer.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
 
                     {/* Actions */}
                     <td className="px-6 py-5 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-3.5">
-                        {/* Eye mark: Opens detailed customer profile drawer sliding from right */}
+                      <div className="flex items-center justify-end gap-2.5">
+                        {/* Eye mark: Opens detailed customer profile drawer */}
                         <button
                           onClick={() => handleViewProfile(customer)}
-                          className="text-ink-soft hover:text-primary transition-colors cursor-pointer p-1"
+                          className="text-ink-soft hover:text-primary transition-colors cursor-pointer p-1.5 rounded-md hover:bg-black/5"
                           title="View customer profile"
                         >
                           <Eye size={18} />
                         </button>
 
-                        {/* Ban / Deactivate mark */}
-                        <button
-                          onClick={() => handleToggleStatus(customer)}
-                          disabled={actionLoading}
-                          className="text-ink-soft hover:text-danger-fg transition-colors cursor-pointer p-1 disabled:opacity-50"
-                          title={
-                            customer.isActive
-                              ? 'Deactivate account'
-                              : 'Activate account'
-                          }
-                        >
-                          <Ban size={18} />
-                        </button>
+                        {/* Ban / Activate Control Button */}
+                        {customer.isActive ? (
+                          <button
+                            onClick={() => openConfirmModal(customer, 'deactivate')}
+                            disabled={actionLoading}
+                            className="text-ink-soft hover:text-[#b91c1c] transition-colors cursor-pointer p-1.5 rounded-md hover:bg-red-50 disabled:opacity-50"
+                            title="Deactivate customer account"
+                          >
+                            <Ban size={18} />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => openConfirmModal(customer, 'activate')}
+                            disabled={actionLoading}
+                            className="text-ink-soft hover:text-[#0d7377] transition-colors cursor-pointer p-1.5 rounded-md hover:bg-teal-50 disabled:opacity-50"
+                            title="Activate customer account"
+                          >
+                            <CheckCircle2 size={18} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -330,13 +409,19 @@ export function CustomerDirectory() {
                 <div className="flex justify-center mb-5">
                   <span
                     className={cn(
-                      'inline-flex items-center px-3.5 py-0.5 rounded-full text-xs font-semibold',
+                      'inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-semibold',
                       selectedCustomer.isActive
                         ? 'bg-[#d1fae5] text-[#065f46]'
-                        : 'bg-[#e5e7eb] text-[#4b5563]'
+                        : 'bg-[#fee2e2] text-[#991b1b]'
                     )}
                   >
-                    {selectedCustomer.status}
+                    <span
+                      className={cn(
+                        'w-2 h-2 rounded-full',
+                        selectedCustomer.isActive ? 'bg-[#10b981]' : 'bg-[#ef4444]'
+                      )}
+                    />
+                    {selectedCustomer.isActive ? 'Active Account' : 'Deactivated'}
                   </span>
                 </div>
 
@@ -364,13 +449,13 @@ export function CustomerDirectory() {
                 <div className="text-ink-soft">
                   <span className="text-ink-soft">Email: </span>
                   <span className="text-ink font-medium">
-                    {selectedCustomer.email}
+                    {selectedCustomer.email || 'Not provided'}
                   </span>
                 </div>
                 <div className="text-ink-soft">
                   <span className="text-ink-soft">Phone: </span>
                   <span className="text-ink font-medium">
-                    {selectedCustomer.phone}
+                    {selectedCustomer.phone || 'Not provided'}
                   </span>
                 </div>
                 <div className="text-ink-soft">
@@ -382,29 +467,167 @@ export function CustomerDirectory() {
               </div>
             </div>
 
-            {/* Footer with Action Button */}
+            {/* Footer with Deactivation / Activation Control Button */}
             <div className="bg-[#f7f4ef] border-t border-[#f0ece5] p-6">
               {selectedCustomer.isActive ? (
                 <button
-                  onClick={() => handleToggleStatus(selectedCustomer)}
+                  onClick={() => openConfirmModal(selectedCustomer, 'deactivate')}
                   disabled={actionLoading}
-                  className="w-full py-2.5 px-4 rounded-lg border border-[#c97a7e] text-[#9e2a2b] font-medium text-sm bg-transparent hover:bg-red-50/70 transition-colors cursor-pointer text-center disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-[#c97a7e] text-[#9e2a2b] font-medium text-sm bg-transparent hover:bg-red-50/80 transition-colors cursor-pointer text-center disabled:opacity-50"
                 >
-                  {actionLoading ? 'Updating...' : 'Deactivate Account'}
+                  <Ban size={16} />
+                  <span>Deactivate Account</span>
                 </button>
               ) : (
                 <button
-                  onClick={() => handleToggleStatus(selectedCustomer)}
+                  onClick={() => openConfirmModal(selectedCustomer, 'activate')}
                   disabled={actionLoading}
-                  className="w-full py-2.5 px-4 rounded-lg border border-[#14b8a6] text-[#0d7377] font-medium text-sm bg-transparent hover:bg-teal-50/70 transition-colors cursor-pointer text-center disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-[#14b8a6] text-[#0d7377] font-medium text-sm bg-transparent hover:bg-teal-50/80 transition-colors cursor-pointer text-center disabled:opacity-50"
                 >
-                  {actionLoading ? 'Updating...' : 'Activate Account'}
+                  <CheckCircle2 size={16} />
+                  <span>Activate Account</span>
                 </button>
               )}
             </div>
           </div>
         )}
       </aside>
+
+      {/* ========================================================================= */}
+      {/* CONFIRMATION DIALOG (Deactivation / Activation)                           */}
+      {/* ========================================================================= */}
+      {confirmModal && (
+        <div
+          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={() => !actionLoading && setConfirmModal(null)}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-2xl border border-line p-6 shadow-2xl animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {confirmModal.action === 'deactivate' ? (
+              <>
+                {/* Deactivation Modal Content */}
+                <div className="flex items-center gap-3.5 mb-4">
+                  <div className="w-11 h-11 rounded-full bg-red-100 flex items-center justify-center text-red-600 shrink-0">
+                    <AlertTriangle size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-ink">Deactivate Customer Account</h3>
+                    <p className="text-xs text-ink-soft">Confirmation required</p>
+                  </div>
+                </div>
+
+                <div className="text-sm text-ink-soft space-y-2 mb-4">
+                  <p className="leading-relaxed">
+                    Are you sure you want to deactivate the account for{' '}
+                    <span className="font-semibold text-ink">
+                      &ldquo;{confirmModal.customer.name}&rdquo;
+                    </span>
+                    ?
+                  </p>
+                  {confirmModal.customer.email && (
+                    <p className="text-xs text-ink-soft bg-[#f9fafb] p-2 rounded border border-[#f3f4f6]">
+                      <span className="font-medium text-ink">Associated Email:</span>{' '}
+                      {confirmModal.customer.email}
+                    </p>
+                  )}
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 flex items-start gap-2.5 mt-2">
+                    <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                    <span className="leading-normal">
+                      The customer will immediately be prevented from logging in or placing meal orders. You can reactivate their account at any time.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#f0ece5]">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={actionLoading}
+                    onClick={() => setConfirmModal(null)}
+                    className="cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                  <button
+                    onClick={handleExecuteStatusChange}
+                    disabled={actionLoading}
+                    className="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-semibold rounded-control bg-[#dc2626] hover:bg-[#b91c1c] text-white transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+                  >
+                    {actionLoading ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>Deactivating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Ban size={16} />
+                        <span>Deactivate Account</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Activation Modal Content */}
+                <div className="flex items-center gap-3.5 mb-4">
+                  <div className="w-11 h-11 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+                    <CheckCircle2 size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-ink">Activate Customer Account</h3>
+                    <p className="text-xs text-ink-soft">Restore customer access</p>
+                  </div>
+                </div>
+
+                <div className="text-sm text-ink-soft space-y-2 mb-4">
+                  <p className="leading-relaxed">
+                    Are you sure you want to activate the account for{' '}
+                    <span className="font-semibold text-ink">
+                      &ldquo;{confirmModal.customer.name}&rdquo;
+                    </span>
+                    ?
+                  </p>
+                  <p className="text-xs text-ink-soft bg-[#f0fdf4] border border-[#dcfce7] p-2.5 rounded-lg text-[#166534]">
+                    The customer will regain immediate access to log into the application and manage their meal plan subscriptions.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#f0ece5]">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={actionLoading}
+                    onClick={() => setConfirmModal(null)}
+                    className="cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                  <button
+                    onClick={handleExecuteStatusChange}
+                    disabled={actionLoading}
+                    className="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-semibold rounded-control bg-[#0d7377] hover:bg-[#0a5c5f] text-white transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+                  >
+                    {actionLoading ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>Activating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check size={16} />
+                        <span>Activate Account</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
