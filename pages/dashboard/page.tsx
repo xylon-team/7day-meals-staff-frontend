@@ -184,7 +184,12 @@ export function Dashboard() {
 
       if (needsInventory) {
         promises.push(
-          getInventoryDashboardStats().then(setInventoryData)
+          getInventoryDashboardStats()
+            .then(setInventoryData)
+            .catch((err) => {
+              console.warn('Inventory stats unavailable:', err)
+              setInventoryData(null)
+            })
         )
       }
 
@@ -397,7 +402,7 @@ export function Dashboard() {
         )}
 
         {/* Inventory: Total Ingredients */}
-        {canViewInventory && (
+        {canViewInventory && inventoryData && (
           <Card className="hover:shadow-card transition-shadow">
             <CardContent className="p-6 flex items-center justify-between">
               <div>
@@ -414,7 +419,7 @@ export function Dashboard() {
         )}
 
         {/* Inventory: Low Stock Items (Figma styled yellow card) */}
-        {canViewInventory && (
+        {canViewInventory && inventoryData && (
           <div className="bg-[#FFFBEB] rounded-card border border-[#FDE68A] p-6 flex items-center justify-between hover:shadow-card transition-shadow">
             <div>
               <p className="text-sm font-semibold text-[#92400E] mb-1">Low Stock Items</p>
@@ -429,7 +434,7 @@ export function Dashboard() {
         )}
 
         {/* Inventory: Out of Stock (Figma styled pink card) */}
-        {canViewInventory && (
+        {canViewInventory && inventoryData && (
           <div className="bg-[#FEF2F2] rounded-card border border-[#FCA5A5] p-6 flex items-center justify-between hover:shadow-card transition-shadow">
             <div>
               <p className="text-sm font-semibold text-[#991B1B] mb-1">Out of Stock</p>
@@ -444,7 +449,7 @@ export function Dashboard() {
         )}
 
         {/* Inventory: Pending Supplier Requests */}
-        {canViewSupplyRequests && (
+        {canViewSupplyRequests && inventoryData && (
           <Card className="hover:shadow-card transition-shadow">
             <CardContent className="p-6 flex items-center justify-between">
               <div>
@@ -460,26 +465,12 @@ export function Dashboard() {
           </Card>
         )}
 
-        {/* Meals: Active Meals */}
-        {canViewMeals && (
-          <StatCard title="Active Meals" value="86" icon={Utensils} />
-        )}
-
-        {/* Meal Plans: Active Packages */}
-        {canViewMealPlans && (
-          <StatCard title="Meal Plans" value="12" icon={CalendarDays} />
-        )}
-
-        {/* Promotions: Active Promotions */}
-        {canViewPromotions && (
-          <StatCard title="Active Promotions" value="3" icon={Tags} />
-        )}
       </div>
 
       {/* ===================================================================== */}
       {/* 2. INVENTORY MANAGER SECTION (Recent Movements & Low Stock Alerts)     */}
       {/* ===================================================================== */}
-      {canViewInventory && (
+      {canViewInventory && inventoryData && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Stock Movements Table (2 Columns) */}
           <Card className="lg:col-span-2">
@@ -712,49 +703,6 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* ===================================================================== */}
-      {/* 4. RECENT ACTIVITY LOGS (Rendered if Logs permitted)                  */}
-      {/* ===================================================================== */}
-      {canViewLogs && (
-        <Card>
-          <CardContent className="p-0">
-            <div className="p-6 border-b border-line flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Recent Activity</h3>
-              <Button variant="outline" size="sm">
-                View All Logs
-              </Button>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="text-[12px] uppercase text-ink-soft bg-canvas font-semibold">
-                  <tr>
-                    <th className="px-6 py-3 rounded-tl-card">Timestamp</th>
-                    <th className="px-6 py-3">User</th>
-                    <th className="px-6 py-3">Action</th>
-                    <th className="px-6 py-3">Module</th>
-                    <th className="px-6 py-3 rounded-tr-card">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {[1, 2, 3, 4].map((i) => (
-                    <tr key={i} className="hover:bg-canvas/50 transition-colors">
-                      <td className="px-6 py-4 text-ink-soft">Today, 10:42 AM</td>
-                      <td className="px-6 py-4 font-medium">Kamal Perera</td>
-                      <td className="px-6 py-4">Updated Meal Price</td>
-                      <td className="px-6 py-4">
-                        <Badge variant="info">Meals</Badge>
-                      </td>
-                      <td className="px-6 py-4">
-                        <Badge variant="success">Success</Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

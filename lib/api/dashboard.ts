@@ -182,26 +182,18 @@ export const getInventoryDashboardStats = async (): Promise<InventoryDashboardDa
   const url = `${API_URL}/stats/inventory-dashboard`;
   
   try {
-    let headers = await getAuthHeaders();
-    let response = await fetch(url, {
+    const userToken = typeof window !== 'undefined' ? useUserStore.getState().user?.accessToken : null;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (userToken) {
+      headers['Authorization'] = `Bearer ${userToken}`;
+    }
+
+    const response = await fetch(url, {
       method: 'GET',
       headers,
     });
-
-    if (!response.ok && response.status === 401) {
-      cachedAdminToken = null;
-      const freshAdminToken = await getAdminToken();
-      if (freshAdminToken) {
-        headers = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${freshAdminToken}`,
-        };
-        response = await fetch(url, {
-          method: 'GET',
-          headers,
-        });
-      }
-    }
 
     if (!response.ok) {
       throw new Error(`Inventory dashboard API returned HTTP ${response.status}`);
