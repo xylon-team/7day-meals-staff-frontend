@@ -173,8 +173,8 @@ export const getAdminDashboardStats = async (): Promise<AdminDashboardData> => {
     const data = await response.json();
     return data;
   } catch (error) {
-    console.warn('Failed to fetch admin dashboard stats from backend, returning default stats:', error);
-    return defaultAdminStats;
+    console.error('Failed to fetch admin dashboard stats from backend:', error);
+    throw error;
   }
 };
 
@@ -196,8 +196,7 @@ export const getInventoryDashboardStats = async (): Promise<InventoryDashboardDa
     });
 
     if (!response.ok) {
-      console.info(`Inventory dashboard API returned HTTP ${response.status}, using sample metrics.`);
-      return mockInventoryDashboardData;
+      throw new Error(`Inventory dashboard API returned HTTP ${response.status}`);
     }
 
     const data = await response.json();
@@ -216,8 +215,8 @@ export const getInventoryDashboardStats = async (): Promise<InventoryDashboardDa
           : defaultLowStockAlerts,
     };
   } catch (error) {
-    console.info('Backend API unavailable, using sample metrics.');
-    return mockInventoryDashboardData;
+    console.error('Backend API unavailable:', error);
+    throw error;
   }
 };
 

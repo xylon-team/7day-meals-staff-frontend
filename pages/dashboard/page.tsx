@@ -184,17 +184,13 @@ export function Dashboard() {
 
       if (needsInventory) {
         promises.push(
-          getInventoryDashboardStats()
-            .then(setInventoryData)
-            .catch((err) => console.warn('Inventory stats fetch error:', err))
+          getInventoryDashboardStats().then(setInventoryData)
         )
       }
 
       if (needsAdminStats) {
         promises.push(
-          getAdminDashboardStats()
-            .then(setAdminStats)
-            .catch((err) => console.warn('Admin stats fetch error:', err))
+          getAdminDashboardStats().then(setAdminStats)
         )
       }
 
@@ -356,6 +352,50 @@ export function Dashboard() {
       {/* 1. TOP STAT CARDS (Rendered dynamically based on permissions)           */}
       {/* ===================================================================== */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        {/* Staff: Total Staff */}
+        {canViewStaff && adminStats && (
+          <StatCard
+            title="Total Staff"
+            value={adminStats.total_staff.toLocaleString()}
+            icon={Users}
+            trend="+2%"
+            trendUp={true}
+          />
+        )}
+
+        {/* Customers: Total Customers */}
+        {canViewCustomers && adminStats && (
+          <StatCard
+            title="Total Customers"
+            value={adminStats.total_customers.toLocaleString()}
+            icon={UserSquare2}
+            trend="+12%"
+            trendUp={true}
+          />
+        )}
+
+        {/* Orders: Active Orders */}
+        {canViewOrders && adminStats && (
+          <StatCard
+            title="Active Orders"
+            value={adminStats.active_orders.toLocaleString()}
+            icon={ShoppingBag}
+            trend="+5%"
+            trendUp={true}
+          />
+        )}
+
+        {/* Reports: Revenue Today */}
+        {canViewReports && adminStats && (
+          <StatCard
+            title="Revenue Today"
+            value={`Rs. ${adminStats.revenue_today.toLocaleString()}`}
+            icon={DollarSign}
+            trend="-1%"
+            trendUp={false}
+          />
+        )}
+
         {/* Inventory: Total Ingredients */}
         {canViewInventory && (
           <Card className="hover:shadow-card transition-shadow">
@@ -418,50 +458,6 @@ export function Dashboard() {
               </div>
             </CardContent>
           </Card>
-        )}
-
-        {/* Orders: Active Orders */}
-        {canViewOrders && adminStats && (
-          <StatCard
-            title="Active Orders"
-            value={adminStats.active_orders.toString()}
-            icon={ShoppingBag}
-            trend="+5%"
-            trendUp={true}
-          />
-        )}
-
-        {/* Reports: Revenue Today */}
-        {canViewReports && adminStats && (
-          <StatCard
-            title="Revenue Today"
-            value={`Rs. ${adminStats.revenue_today.toLocaleString()}`}
-            icon={DollarSign}
-            trend="-1%"
-            trendUp={false}
-          />
-        )}
-
-        {/* Staff: Total Staff */}
-        {canViewStaff && adminStats && (
-          <StatCard
-            title="Total Staff"
-            value={adminStats.total_staff.toString()}
-            icon={Users}
-            trend="+2%"
-            trendUp={true}
-          />
-        )}
-
-        {/* Customers: Total Customers */}
-        {canViewCustomers && adminStats && (
-          <StatCard
-            title="Total Customers"
-            value={adminStats.total_customers.toString()}
-            icon={UserSquare2}
-            trend="+12%"
-            trendUp={true}
-          />
         )}
 
         {/* Meals: Active Meals */}
@@ -626,7 +622,7 @@ export function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2">
             <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Weekly Orders This Week</h3>
+              <h3 className="text-lg font-semibold mb-4">Weekly Orders This Month</h3>
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={weeklyDataFormatted}>
