@@ -101,8 +101,8 @@ const mapSupplierResponse = (item: any): Supplier => {
       item.is_active !== undefined
         ? Boolean(item.is_active)
         : item.status !== undefined
-        ? item.status === 'Active' || item.status === 'active'
-        : item.isActive !== false,
+          ? item.status === 'Active' || item.status === 'active'
+          : item.isActive !== false,
     address: [item.address_line_1, item.address_line_2, item.address_line_3]
       .filter(Boolean)
       .join(', ') || item.address || '',
@@ -180,7 +180,7 @@ export const getSuppliers = async (search?: string): Promise<Supplier[]> => {
           s.contactPerson.toLowerCase().includes(q) ||
           s.email.toLowerCase().includes(q) ||
           s.phone.toLowerCase().includes(q) ||
-          s.categories.some((cat) => cat.toLowerCase().includes(q))
+          (s.address && s.address.toLowerCase().includes(q))
       );
     }
     return [...mockSuppliers];
@@ -207,20 +207,20 @@ export const toggleSupplierStatus = async (
     const headers = await getAuthHeaders();
 
     if (!isActive) {
-      // Backend provides PATCH /suppliers/:id/deactivate
+      // Backend provides PATCH /suppliers/:id/deactivate which returns { supplier_id, is_active }
       const response = await fetch(`${API_URL}/suppliers/${id}/deactivate`, {
         method: 'PATCH',
         headers,
       });
 
       if (response.ok) {
-        const data = await response.json();
-        if (data && typeof data === 'object') {
-          return mapSupplierResponse(data);
+        if (index !== -1) {
+          mockSuppliers[index] = { ...mockSuppliers[index], isActive: false };
+          return mockSuppliers[index];
         }
       }
     } else {
-      // If activating, try generic update or activate route
+      // Activating supplier
       const response = await fetch(`${API_URL}/suppliers/${id}`, {
         method: 'PATCH',
         headers,
@@ -228,9 +228,9 @@ export const toggleSupplierStatus = async (
       });
 
       if (response.ok) {
-        const data = await response.json();
-        if (data && typeof data === 'object') {
-          return mapSupplierResponse(data);
+        if (index !== -1) {
+          mockSuppliers[index] = { ...mockSuppliers[index], isActive: true };
+          return mockSuppliers[index];
         }
       }
     }
@@ -247,7 +247,6 @@ export const toggleSupplierStatus = async (
     contactPerson: '',
     email: '',
     phone: '',
-    categories: ['General'],
     isActive,
   };
 };
@@ -255,44 +254,87 @@ export const toggleSupplierStatus = async (
 export const createSupplier = async (
   dto: CreateSupplierDto
 ): Promise<Supplier> => {
-  const newSupplier: Supplier = {
-    id: supplierIdCounter++,
-    name: dto.name,
-    contactPerson: dto.contactPerson,
-    email: dto.email,
-    phone: dto.phone,
-    categories: dto.categories.length > 0 ? dto.categories : ['General'],
-    isActive: dto.isActive ?? true,
-    address: dto.address || '',
+  const payload = {
+    name: dto.name.trim(),
+    agent_name: dto.contactPerson.trim(),
+    email: dto.email.trim(),
+    phone_number: dto.phone.trim(),
+    address_line_1: dto.address?.trim() || dto.address_line_1?.trim() || undefined,
   };
-
-  mockSuppliers = [newSupplier, ...mockSuppliers];
 
   try {
     const response = await fetch(`${API_URL}/suppliers`, {
       method: 'POST',
       headers: await getAuthHeaders(),
-      body: JSON.stringify({
-        name: dto.name,
-        agent_name: dto.contactPerson,
-        email: dto.email,
-        phone_number: dto.phone,
-        address_line_1: dto.address,
-        is_active: dto.isActive ?? true,
-      }),
+      body: JSON.stringify(payload),
     });
 
-    if (response.ok) {
-      const data = await response.json();
-      if (data && typeof data === 'object') {
-        return mapSupplierResponse(data);
+    if (!response.ok) {
+      let errorMsg = `Supplier creation failed (Status ${response.status})`;
+      try {
+        const errJson = await response.json();
+        if (errJson && errJson.message) {
+          errorMsg = Array.isArray(errJson.message)
+            ? errJson.message.join(', ')
+            : String(errJson.message);
+        }
+      } catch {
+        // Ignore json parse error
       }
+      throw new Error(errorMsg);
     }
-  } catch (error) {
-    console.warn('Backend supplier creation failed, kept in local state:', error);
+
+    const data = await response.json();
+    if (data && typeof data === 'object') {
+      let created = mapSupplierResponse(data);
+      created.isActive = dto.isActive ?? true;
+
+      // Handle active state if set to false on creation
+      if (dto.isActive === false) {
+        try {
+          await toggleSupplierStatus(created.id, false);
+          created.isActive = false;
+        } catch {
+          created.isActive = false;
+        }
+      }
+
+      // Add to local state cache
+      mockSuppliers = [created, ...mockSuppliers.filter((s) => s.id !== created.id)];
+      return created;
+    }
+  } catch (error: any) {
+    console.warn('Backend supplier creation request error:', error);
+
+    // If fetch failed due to network / offline server, fall back to creating in local mock state
+    if (error.message && (error.message.includes('Failed to fetch') || error.message.includes('NetworkError'))) {
+      const fallbackSupplier: Supplier = {
+        id: supplierIdCounter++,
+        name: dto.name,
+        contactPerson: dto.contactPerson,
+        email: dto.email,
+        phone: dto.phone,
+        isActive: dto.isActive ?? true,
+        address: dto.address || '',
+      };
+      mockSuppliers = [fallbackSupplier, ...mockSuppliers];
+      return fallbackSupplier;
+    }
+
+    throw error;
   }
 
-  return newSupplier;
+  const fallbackSupplier: Supplier = {
+    id: supplierIdCounter++,
+    name: dto.name,
+    contactPerson: dto.contactPerson,
+    email: dto.email,
+    phone: dto.phone,
+    isActive: dto.isActive ?? true,
+    address: dto.address || '',
+  };
+  mockSuppliers = [fallbackSupplier, ...mockSuppliers];
+  return fallbackSupplier;
 };
 
 export const updateSupplier = async (
@@ -300,14 +342,18 @@ export const updateSupplier = async (
   dto: UpdateSupplierDto
 ): Promise<Supplier> => {
   const index = mockSuppliers.findIndex((s) => s.id === id);
-  if (index !== -1) {
-    mockSuppliers[index] = {
-      ...mockSuppliers[index],
-      ...dto,
-      categories: dto.categories ?? mockSuppliers[index].categories,
-      isActive: dto.isActive ?? mockSuppliers[index].isActive,
-    };
-  }
+  let updatedSupplier: Supplier = {
+    ...(index !== -1
+      ? mockSuppliers[index]
+      : { id, name: '', contactPerson: '', email: '', phone: '', isActive: true }),
+    ...dto,
+    name: dto.name ?? (index !== -1 ? mockSuppliers[index].name : ''),
+    contactPerson: dto.contactPerson ?? (index !== -1 ? mockSuppliers[index].contactPerson : ''),
+    email: dto.email ?? (index !== -1 ? mockSuppliers[index].email : ''),
+    phone: dto.phone ?? (index !== -1 ? mockSuppliers[index].phone : ''),
+    address: dto.address ?? (index !== -1 ? mockSuppliers[index].address : ''),
+    isActive: dto.isActive !== undefined ? dto.isActive : (index !== -1 ? mockSuppliers[index].isActive : true),
+  };
 
   try {
     const response = await fetch(`${API_URL}/suppliers/${id}`, {
@@ -319,14 +365,32 @@ export const updateSupplier = async (
         email: dto.email,
         phone_number: dto.phone,
         address_line_1: dto.address,
-        is_active: dto.isActive,
       }),
     });
 
     if (response.ok) {
       const data = await response.json();
       if (data && typeof data === 'object') {
-        return mapSupplierResponse(data);
+        const backendResult = mapSupplierResponse(data);
+        updatedSupplier = {
+          ...updatedSupplier,
+          ...backendResult,
+          name: backendResult.name || updatedSupplier.name,
+          contactPerson: backendResult.contactPerson || updatedSupplier.contactPerson,
+          email: backendResult.email || updatedSupplier.email,
+          phone: backendResult.phone || updatedSupplier.phone,
+          address: backendResult.address || updatedSupplier.address,
+          isActive: dto.isActive !== undefined ? dto.isActive : updatedSupplier.isActive,
+        };
+      }
+    }
+
+    if (dto.isActive === false) {
+      try {
+        await toggleSupplierStatus(id, false);
+        updatedSupplier.isActive = false;
+      } catch (e) {
+        console.warn('Deactivation failed:', e);
       }
     }
   } catch (error) {
@@ -334,9 +398,9 @@ export const updateSupplier = async (
   }
 
   if (index !== -1) {
-    return { ...mockSuppliers[index] };
+    mockSuppliers[index] = updatedSupplier;
   }
-  throw new Error(`Supplier with id ${id} not found`);
+  return updatedSupplier;
 };
 
 export const deleteSupplier = async (id: number): Promise<boolean> => {

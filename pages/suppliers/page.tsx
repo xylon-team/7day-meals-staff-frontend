@@ -24,6 +24,7 @@ import {
 import { Supplier, CreateSupplierDto } from '@/lib/types/supplier'
 import { Card } from '@/components/Card'
 import { Button } from '@/components/Button'
+import { CreateSupplierModal } from '@/components/CreateSupplierModal'
 import { cn } from '@/lib/utils'
 
 export function SuppliersPage() {
@@ -31,20 +32,12 @@ export function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('ALL')
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null)
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
-  const [modalName, setModalName] = useState('')
-  const [modalContactPerson, setModalContactPerson] = useState('')
-  const [modalEmail, setModalEmail] = useState('')
-  const [modalPhone, setModalPhone] = useState('')
-  const [modalCategories, setModalCategories] = useState('')
-  const [modalIsActive, setModalIsActive] = useState(true)
-  const [modalSubmitting, setModalSubmitting] = useState(false)
 
   // Delete confirmation modal state
   const [deleteConfirm, setDeleteConfirm] = useState<Supplier | null>(null)
@@ -112,69 +105,12 @@ export function SuppliersPage() {
   // Open modal for Create or Edit
   const openAddModal = () => {
     setEditingSupplier(null)
-    setModalName('')
-    setModalContactPerson('')
-    setModalEmail('')
-    setModalPhone('')
-    setModalCategories('')
-    setModalIsActive(true)
     setIsModalOpen(true)
   }
 
   const openEditModal = (supplier: Supplier) => {
     setEditingSupplier(supplier)
-    setModalName(supplier.name)
-    setModalContactPerson(supplier.contactPerson)
-    setModalEmail(supplier.email)
-    setModalPhone(supplier.phone)
-    setModalCategories(supplier.categories.join(', '))
-    setModalIsActive(supplier.isActive)
     setIsModalOpen(true)
-  }
-
-  const handleModalSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!modalName.trim() || !modalContactPerson.trim()) return
-
-    const parsedCategories = modalCategories
-      .split(',')
-      .map((c) => c.trim())
-      .filter(Boolean)
-
-    setModalSubmitting(true)
-    try {
-      if (editingSupplier) {
-        const updated = await updateSupplier(editingSupplier.id, {
-          name: modalName.trim(),
-          contactPerson: modalContactPerson.trim(),
-          email: modalEmail.trim(),
-          phone: modalPhone.trim(),
-          categories: parsedCategories.length > 0 ? parsedCategories : ['General'],
-          isActive: modalIsActive,
-        })
-        setSuppliers((prev) =>
-          prev.map((s) => (s.id === updated.id ? updated : s))
-        )
-        showToast(`Supplier "${modalName}" updated successfully!`)
-      } else {
-        const created = await createSupplier({
-          name: modalName.trim(),
-          contactPerson: modalContactPerson.trim(),
-          email: modalEmail.trim(),
-          phone: modalPhone.trim(),
-          categories: parsedCategories.length > 0 ? parsedCategories : ['General'],
-          isActive: modalIsActive,
-        })
-        setSuppliers((prev) => [created, ...prev])
-        showToast(`Supplier "${modalName}" added successfully!`)
-      }
-      setIsModalOpen(false)
-    } catch (err) {
-      console.error('Failed to save supplier:', err)
-      showToast('Failed to save supplier details')
-    } finally {
-      setModalSubmitting(false)
-    }
   }
 
   const handleDeleteSupplier = async () => {
@@ -201,18 +137,14 @@ export function SuppliersPage() {
   // Filter suppliers by search query and category
   const filteredSuppliers = suppliers.filter((s) => {
     const q = searchQuery.toLowerCase().trim()
-    const matchesSearch =
+    return (
       !q ||
       s.name.toLowerCase().includes(q) ||
       s.contactPerson.toLowerCase().includes(q) ||
       s.email.toLowerCase().includes(q) ||
       s.phone.toLowerCase().includes(q) ||
-      s.categories.some((cat) => cat.toLowerCase().includes(q))
-
-    const matchesCategory =
-      categoryFilter === 'ALL' || s.categories.includes(categoryFilter)
-
-    return matchesSearch && matchesCategory
+      (s.address && s.address.toLowerCase().includes(q))
+    )
   })
 
   return (
@@ -250,9 +182,9 @@ export function SuppliersPage() {
         </div>
       </div>
 
-      {/* Search & Filter Card */}
+      {/* Search Card */}
       <Card className="p-5 sm:p-6 space-y-6 bg-white border border-line shadow-card">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="flex items-center gap-3">
           <div className="relative flex-1">
             <Search
               size={18}
@@ -266,21 +198,6 @@ export function SuppliersPage() {
               className="w-full h-11 pl-10 pr-4 rounded-lg bg-[#f4f2ee] border-transparent text-sm text-ink placeholder:text-ink-soft/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
             />
           </div>
-
-          <div className="flex items-center gap-2">
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="h-11 px-4 py-2 rounded-lg bg-[#f4f2ee] border-transparent text-sm text-ink font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent cursor-pointer transition-all min-w-[140px]"
-            >
-              <option value="ALL">All Categories</option>
-              {allCategories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
 
         {/* Suppliers Table */}
@@ -291,7 +208,7 @@ export function SuppliersPage() {
                 <th className="px-6 py-4 font-semibold">Supplier Name</th>
                 <th className="px-6 py-4 font-semibold">Contact Person</th>
                 <th className="px-6 py-4 font-semibold">Contact Info</th>
-                <th className="px-6 py-4 font-semibold">Categories</th>
+                <th className="px-6 py-4 font-semibold">Address</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 text-right font-semibold">Actions</th>
               </tr>
@@ -351,18 +268,9 @@ export function SuppliersPage() {
                       </div>
                     </td>
 
-                    {/* Categories */}
-                    <td className="px-6 py-5 whitespace-nowrap">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {supplier.categories.map((cat, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#dbeafe] text-[#1e40af]"
-                          >
-                            {cat}
-                          </span>
-                        ))}
-                      </div>
+                    {/* Address */}
+                    <td className="px-6 py-5 max-w-xs truncate text-sm text-ink-soft">
+                      {supplier.address || '—'}
                     </td>
 
                     {/* Status Toggle Switch */}
@@ -420,134 +328,21 @@ export function SuppliersPage() {
       </Card>
 
       {/* ==================== CREATE / EDIT MODAL ==================== */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-card rounded-card shadow-xl border border-line overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-line flex items-center justify-between bg-canvas/30">
-              <h3 className="text-lg font-bold text-ink">
-                {editingSupplier ? 'Edit Supplier' : 'Add New Supplier'}
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-ink-soft hover:text-ink cursor-pointer p-1 rounded-md"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleModalSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5">
-                  Supplier Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={modalName}
-                  onChange={(e) => setModalName(e.target.value)}
-                  placeholder="e.g. Perera Distributors"
-                  className="w-full h-10 px-3 rounded-control border border-line bg-card text-sm text-ink placeholder:text-ink-soft focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5">
-                  Contact Person *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={modalContactPerson}
-                  onChange={(e) => setModalContactPerson(e.target.value)}
-                  placeholder="e.g. Kamal Perera"
-                  className="w-full h-10 px-3 rounded-control border border-line bg-card text-sm text-ink placeholder:text-ink-soft focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={modalEmail}
-                    onChange={(e) => setModalEmail(e.target.value)}
-                    placeholder="e.g. kamal@example.com"
-                    className="w-full h-10 px-3 rounded-control border border-line bg-card text-sm text-ink placeholder:text-ink-soft focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5">
-                    Phone
-                  </label>
-                  <input
-                    type="text"
-                    value={modalPhone}
-                    onChange={(e) => setModalPhone(e.target.value)}
-                    placeholder="e.g. 0771112223"
-                    className="w-full h-10 px-3 rounded-control border border-line bg-card text-sm text-ink placeholder:text-ink-soft focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5">
-                  Categories (comma separated)
-                </label>
-                <input
-                  type="text"
-                  value={modalCategories}
-                  onChange={(e) => setModalCategories(e.target.value)}
-                  placeholder="e.g. Grains, Spices, Meat"
-                  className="w-full h-10 px-3 rounded-control border border-line bg-card text-sm text-ink placeholder:text-ink-soft focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-sm font-medium text-ink">Active Status</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={modalIsActive}
-                  onClick={() => setModalIsActive(!modalIsActive)}
-                  className={cn(
-                    'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary',
-                    modalIsActive ? 'bg-[#0d7377]' : 'bg-[#cbd5e1]'
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out',
-                      modalIsActive ? 'translate-x-5' : 'translate-x-0'
-                    )}
-                  />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-line">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="sm"
-                  disabled={modalSubmitting}
-                >
-                  {modalSubmitting ? 'Saving...' : editingSupplier ? 'Update Supplier' : 'Add Supplier'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <CreateSupplierModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        editingSupplier={editingSupplier}
+        onSuccess={(supplier, message) => {
+          setSuppliers((prev) => {
+            const exists = prev.some((s) => s.id === supplier.id)
+            if (exists) {
+              return prev.map((s) => (s.id === supplier.id ? supplier : s))
+            }
+            return [supplier, ...prev]
+          })
+          showToast(message)
+        }}
+      />
 
       {/* ==================== DELETE CONFIRMATION MODAL ==================== */}
       {deleteConfirm && (
