@@ -4,9 +4,12 @@ export interface Supplier {
   contactPerson: string;
   email: string;
   phone: string;
-  categories: string[];
   isActive: boolean;
   address?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  address_line_3?: string;
+  categories?: string[];
 }
 
 export interface CreateSupplierDto {
@@ -14,9 +17,12 @@ export interface CreateSupplierDto {
   contactPerson: string;
   email: string;
   phone: string;
-  categories: string[];
   isActive?: boolean;
   address?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  address_line_3?: string;
+  categories?: string[];
 }
 
 export interface UpdateSupplierDto {
@@ -24,7 +30,10 @@ export interface UpdateSupplierDto {
   contactPerson?: string;
   email?: string;
   phone?: string;
-  categories?: string[];
   isActive?: boolean;
   address?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  address_line_3?: string;
+  categories?: string[];
 }
