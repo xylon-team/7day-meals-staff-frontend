@@ -25,6 +25,7 @@ import {
 import { Customer } from '@/lib/types/customer'
 import { Card } from '@/components/Card'
 import { Button } from '@/components/Button'
+import { usePermission } from '@/lib/use-permission'
 import { cn } from '@/lib/utils'
 
 interface ToastState {
@@ -39,6 +40,7 @@ interface ConfirmModalState {
 
 export function CustomerDirectory() {
   const router = useRouter()
+  const canChangeCustomer = usePermission('customer', 'change') || usePermission('customer', 'delete')
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -331,24 +333,26 @@ export function CustomerDirectory() {
                         </button>
 
                         {/* Ban / Activate Control Button */}
-                        {customer.isActive ? (
-                          <button
-                            onClick={() => openConfirmModal(customer, 'deactivate')}
-                            disabled={actionLoading}
-                            className="text-ink-soft hover:text-[#b91c1c] transition-colors cursor-pointer p-1.5 rounded-md hover:bg-red-50 disabled:opacity-50"
-                            title="Deactivate customer account"
-                          >
-                            <Ban size={18} />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => openConfirmModal(customer, 'activate')}
-                            disabled={actionLoading}
-                            className="text-ink-soft hover:text-[#0d7377] transition-colors cursor-pointer p-1.5 rounded-md hover:bg-teal-50 disabled:opacity-50"
-                            title="Activate customer account"
-                          >
-                            <CheckCircle2 size={18} />
-                          </button>
+                        {canChangeCustomer && (
+                          customer.isActive ? (
+                            <button
+                              onClick={() => openConfirmModal(customer, 'deactivate')}
+                              disabled={actionLoading}
+                              className="text-ink-soft hover:text-[#b91c1c] transition-colors cursor-pointer p-1.5 rounded-md hover:bg-red-50 disabled:opacity-50"
+                              title="Deactivate customer account"
+                            >
+                              <Ban size={18} />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => openConfirmModal(customer, 'activate')}
+                              disabled={actionLoading}
+                              className="text-ink-soft hover:text-[#0d7377] transition-colors cursor-pointer p-1.5 rounded-md hover:bg-teal-50 disabled:opacity-50"
+                              title="Activate customer account"
+                            >
+                              <CheckCircle2 size={18} />
+                            </button>
+                          )
                         )}
                       </div>
                     </td>
@@ -468,27 +472,29 @@ export function CustomerDirectory() {
             </div>
 
             {/* Footer with Deactivation / Activation Control Button */}
-            <div className="bg-[#f7f4ef] border-t border-[#f0ece5] p-6">
-              {selectedCustomer.isActive ? (
-                <button
-                  onClick={() => openConfirmModal(selectedCustomer, 'deactivate')}
-                  disabled={actionLoading}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-[#c97a7e] text-[#9e2a2b] font-medium text-sm bg-transparent hover:bg-red-50/80 transition-colors cursor-pointer text-center disabled:opacity-50"
-                >
-                  <Ban size={16} />
-                  <span>Deactivate Account</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => openConfirmModal(selectedCustomer, 'activate')}
-                  disabled={actionLoading}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-[#14b8a6] text-[#0d7377] font-medium text-sm bg-transparent hover:bg-teal-50/80 transition-colors cursor-pointer text-center disabled:opacity-50"
-                >
-                  <CheckCircle2 size={16} />
-                  <span>Activate Account</span>
-                </button>
-              )}
-            </div>
+            {canChangeCustomer && (
+              <div className="bg-[#f7f4ef] border-t border-[#f0ece5] p-6">
+                {selectedCustomer.isActive ? (
+                  <button
+                    onClick={() => openConfirmModal(selectedCustomer, 'deactivate')}
+                    disabled={actionLoading}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-[#c97a7e] text-[#9e2a2b] font-medium text-sm bg-transparent hover:bg-red-50/80 transition-colors cursor-pointer text-center disabled:opacity-50"
+                  >
+                    <Ban size={16} />
+                    <span>Deactivate Account</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => openConfirmModal(selectedCustomer, 'activate')}
+                    disabled={actionLoading}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-[#14b8a6] text-[#0d7377] font-medium text-sm bg-transparent hover:bg-teal-50/80 transition-colors cursor-pointer text-center disabled:opacity-50"
+                  >
+                    <CheckCircle2 size={16} />
+                    <span>Activate Account</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
       </aside>

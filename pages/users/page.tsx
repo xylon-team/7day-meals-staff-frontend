@@ -24,11 +24,19 @@ import { Badge } from '@/components/Badge'
 import { Button } from '@/components/Button'
 import { Card, CardContent } from '@/components/Card'
 import { Input } from '@/components/Input'
-
-
+import { usePermission } from '@/lib/use-permission'
 
 export function Users() {
   const router = useRouter()
+  const canAddRole = usePermission('role', 'add')
+  const canChangeRole = usePermission('role', 'change')
+  const canDeleteRole = usePermission('role', 'delete')
+  const canManagePerms = usePermission('permission_assign', 'view') || usePermission('permission_assign', 'change')
+
+  const canAddStaff = usePermission('staff', 'add')
+  const canChangeStaff = usePermission('staff', 'change')
+  const canDeleteStaff = usePermission('staff', 'delete')
+
   const [apiRolesList, setApiRolesList] = useState<Role[]>([])
   const [apiStaffList, setApiStaffList] = useState<Staff[]>([])
 
@@ -382,14 +390,16 @@ export function Users() {
               <Shield size={20} />
               <span>Roles</span>
             </div>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => openRoleModal()}
-              className="flex items-center gap-1.5 shadow-sm cursor-pointer"
-            >
-              <Plus size={16} /> Create Role
-            </Button>
+            {canAddRole && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => openRoleModal()}
+                className="flex items-center gap-1.5 shadow-sm cursor-pointer"
+              >
+                <Plus size={16} /> Create Role
+              </Button>
+            )}
           </div>
 
           <div className="overflow-x-auto">
@@ -426,27 +436,33 @@ export function Users() {
                       {/* Actions */}
                       <td className="px-6 py-5 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-3.5">
-                          <button
-                            onClick={() => router.push(`/roles?role=${encodeURIComponent(role.role)}`)}
-                            className="text-ink-soft hover:text-primary transition-colors cursor-pointer"
-                            title="Manage Permissions"
-                          >
-                            <ShieldCheck size={18} />
-                          </button>
-                          <button
-                            onClick={() => openRoleModal(role)}
-                            className="text-ink-soft hover:text-ink transition-colors cursor-pointer"
-                            title="Edit Role"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button
-                            onClick={() => setDeleteRoleConfirm({id: role.id, name: role.role})}
-                            className="text-danger-fg hover:text-danger-fg/80 transition-colors cursor-pointer"
-                            title="Delete Role"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          {canManagePerms && (
+                            <button
+                              onClick={() => router.push(`/roles?role=${encodeURIComponent(role.role)}`)}
+                              className="text-ink-soft hover:text-primary transition-colors cursor-pointer"
+                              title="Manage Permissions"
+                            >
+                              <ShieldCheck size={18} />
+                            </button>
+                          )}
+                          {canChangeRole && (
+                            <button
+                              onClick={() => openRoleModal(role)}
+                              className="text-ink-soft hover:text-ink transition-colors cursor-pointer"
+                              title="Edit Role"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                          )}
+                          {canDeleteRole && (
+                            <button
+                              onClick={() => setDeleteRoleConfirm({id: role.id, name: role.role})}
+                              className="text-danger-fg hover:text-danger-fg/80 transition-colors cursor-pointer"
+                              title="Delete Role"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -462,14 +478,16 @@ export function Users() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold text-ink">Users</h3>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => openUserModal()}
-            className="flex items-center gap-1.5 shadow-sm cursor-pointer"
-          >
-            <Plus size={16} /> Create User
-          </Button>
+          {canAddStaff && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => openUserModal()}
+              className="flex items-center gap-1.5 shadow-sm cursor-pointer"
+            >
+              <Plus size={16} /> Create User
+            </Button>
+          )}
         </div>
 
         <Card>
@@ -522,8 +540,11 @@ export function Users() {
                       <td className="px-6 py-4 text-center">
                         <div className="flex justify-center items-center">
                           <button
-                            onClick={() => toggleUserStatus(user.id, user.status, `${user.fname} ${user.lname}`)}
-                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                            onClick={() => canChangeStaff && toggleUserStatus(user.id, user.status, `${user.fname} ${user.lname}`)}
+                            disabled={!canChangeStaff}
+                            className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 ${
+                              canChangeStaff ? 'cursor-pointer' : 'cursor-not-allowed'
+                            } ${
                               user.status === StaffStatus.ACTIVE ? 'bg-[#0a5c60]' : 'bg-line'
                             }`}
                           >
@@ -539,20 +560,24 @@ export function Users() {
                       {/* Actions */}
                       <td className="px-6 py-4 whitespace-nowrap text-right text-ink-soft text-sm">
                         <div className="flex items-center justify-end gap-4">
-                          <button
-                            onClick={() => openUserModal(user)}
-                            className="hover:text-ink transition-colors cursor-pointer"
-                            title="Edit User"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button
-                            onClick={() => setDeleteUserConfirm(user.id)}
-                            className="text-danger-fg hover:text-danger-fg/80 transition-colors cursor-pointer"
-                            title="Delete User"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          {canChangeStaff && (
+                            <button
+                              onClick={() => openUserModal(user)}
+                              className="hover:text-ink transition-colors cursor-pointer"
+                              title="Edit User"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                          )}
+                          {canDeleteStaff && (
+                            <button
+                              onClick={() => setDeleteUserConfirm(user.id)}
+                              className="text-danger-fg hover:text-danger-fg/80 transition-colors cursor-pointer"
+                              title="Delete User"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
