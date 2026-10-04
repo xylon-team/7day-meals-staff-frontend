@@ -28,8 +28,9 @@ import {
   X,
   Loader2,
   ShoppingBag,
+  ShieldAlert,
 } from 'lucide-react'
-import { useUserStore } from '@/store/user-store'
+import { useUserStore, User } from '@/store/user-store'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
@@ -239,6 +240,74 @@ function checkPermission(
   }
   // Any action for this module is enough to show the nav item
   return permissions.some((p) => p.startsWith(`${code}_`))
+}
+
+/**
+ * Route guard helper to check if current user can access current pathname.
+ */
+function isRouteAllowed(pathname: string | null, user: User): boolean {
+  if (!pathname) return true
+  if (user.role === 'Admin') return true
+  if (
+    pathname === '/' ||
+    pathname === '/dashboard' ||
+    pathname === '/profile' ||
+    pathname === '/login' ||
+    pathname === '/admin-login'
+  ) {
+    return true
+  }
+
+  // If permissions haven't loaded yet for non-Admin, allow temporarily until loaded
+  if (!user.permissions) return true
+
+  if (pathname.startsWith('/users')) {
+    return (
+      checkPermission(user.permissions, user.role, 'role') ||
+      checkPermission(user.permissions, user.role, 'staff')
+    )
+  }
+  if (pathname.startsWith('/roles')) {
+    return checkPermission(user.permissions, user.role, 'permission_assign')
+  }
+  if (pathname.startsWith('/customers')) {
+    return checkPermission(user.permissions, user.role, 'customer')
+  }
+  if (pathname.startsWith('/meals')) {
+    return checkPermission(user.permissions, user.role, 'meal_item')
+  }
+  if (pathname.startsWith('/meal-plans') || pathname.startsWith('/prebuilt-meals')) {
+    return checkPermission(user.permissions, user.role, 'meal_package')
+  }
+  if (pathname.startsWith('/promotions')) {
+    return checkPermission(user.permissions, user.role, 'promotion')
+  }
+  if (pathname.startsWith('/new-orders') || pathname.startsWith('/orders')) {
+    return checkPermission(user.permissions, user.role, 'orders')
+  }
+  if (pathname.startsWith('/inventory')) {
+    return checkPermission(user.permissions, user.role, 'inventory_item')
+  }
+  if (pathname.startsWith('/suppliers')) {
+    return checkPermission(user.permissions, user.role, 'supplier')
+  }
+  if (pathname.startsWith('/supply-requests')) {
+    return checkPermission(user.permissions, user.role, 'supply_request')
+  }
+  if (pathname.startsWith('/staff') || pathname.startsWith('/salary')) {
+    return checkPermission(user.permissions, user.role, 'staff')
+  }
+  if (pathname.startsWith('/reports')) {
+    return checkPermission(user.permissions, user.role, 'analysis_report')
+  }
+  if (pathname.startsWith('/logs')) {
+    return checkPermission(user.permissions, user.role, 'logs')
+  }
+  if (pathname.startsWith('/settings')) {
+    return checkPermission(user.permissions, user.role, 'system_settings')
+  }
+
+  return true
 }
 
 // ---------------------------------------------------------------------------
@@ -496,7 +565,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
+          {!isRouteAllowed(pathname, user) ? (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 bg-card border border-line rounded-2xl shadow-sm">
+              <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center text-red-600 mb-4">
+                <ShieldAlert size={36} />
+              </div>
+              <h2 className="text-2xl font-bold text-ink mb-2">Access Denied</h2>
+              <p className="text-sm text-ink-soft max-w-md mb-6">
+                You do not have permission to view or access this module. Please contact your system administrator if you require access.
+              </p>
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="px-5 py-2.5 bg-[#0d7377] hover:bg-[#0a5c60] text-white font-semibold text-sm rounded-lg transition-colors cursor-pointer shadow-sm"
+              >
+                Return to Dashboard
+              </button>
+            </div>
+          ) : (
+            children
+          )}
+        </main>
       </div>
 
       {/* Mobile Bottom Nav */}

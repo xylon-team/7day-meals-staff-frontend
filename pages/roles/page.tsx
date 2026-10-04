@@ -10,6 +10,7 @@ import { Role as ApiRole } from '@/lib/types/roles'
 import { Badge } from '@/components/Badge'
 import { Button } from '@/components/Button'
 import { Card, CardContent } from '@/components/Card'
+import { usePermission } from '@/lib/use-permission'
 
 interface PermissionRow {
   code: string
@@ -66,6 +67,7 @@ export function Permissions() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { updateRolePermissions } = useStore()
+  const canChangePerms = usePermission('permission_assign', 'change')
 
   // Track the current role being edited
   const [selectedRole, setSelectedRole] = useState<Role>('Catering Manager')
@@ -352,9 +354,11 @@ export function Permissions() {
           <p className="text-sm text-ink-soft mt-1">Assign specific module permissions to roles</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="primary" size="md" onClick={handleSave} className="flex items-center gap-2 shadow-sm shrink-0">
-            <Save size={16} /> Save Changes
-          </Button>
+          {canChangePerms && (
+            <Button variant="primary" size="md" onClick={handleSave} className="flex items-center gap-2 shadow-sm shrink-0">
+              <Save size={16} /> Save Changes
+            </Button>
+          )}
         </div>
       </div>
 
@@ -461,8 +465,11 @@ export function Permissions() {
                         <td className="px-6 py-4 text-center">
                           <div className="flex justify-center items-center">
                             <button
-                              onClick={() => handleToggleChange(row.code, !isAllChecked)}
-                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                              disabled={!canChangePerms}
+                              onClick={() => canChangePerms && handleToggleChange(row.code, !isAllChecked)}
+                              className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 ${
+                                canChangePerms ? 'cursor-pointer' : 'cursor-not-allowed'
+                              } ${
                                 isAllChecked ? 'bg-primary' : 'bg-line'
                               }`}
                             >
@@ -481,11 +488,12 @@ export function Permissions() {
                             <div className="flex justify-center">
                               <input
                                 type="checkbox"
+                                disabled={!canChangePerms}
                                 checked={perms.add || false}
                                 onChange={(e) =>
-                                  handleCheckboxChange(row.code, 'add', e.target.checked)
+                                  canChangePerms && handleCheckboxChange(row.code, 'add', e.target.checked)
                                 }
-                                className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
+                                className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                               />
                             </div>
                           ) : (
@@ -499,11 +507,12 @@ export function Permissions() {
                             <div className="flex justify-center">
                               <input
                                 type="checkbox"
+                                disabled={!canChangePerms}
                                 checked={perms.change || false}
                                 onChange={(e) =>
-                                  handleCheckboxChange(row.code, 'change', e.target.checked)
+                                  canChangePerms && handleCheckboxChange(row.code, 'change', e.target.checked)
                                 }
-                                className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
+                                className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                               />
                             </div>
                           ) : (
@@ -517,11 +526,12 @@ export function Permissions() {
                             <div className="flex justify-center">
                               <input
                                 type="checkbox"
+                                disabled={!canChangePerms}
                                 checked={perms.delete || false}
                                 onChange={(e) =>
-                                  handleCheckboxChange(row.code, 'delete', e.target.checked)
+                                  canChangePerms && handleCheckboxChange(row.code, 'delete', e.target.checked)
                                 }
-                                className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
+                                className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                               />
                             </div>
                           ) : (
@@ -535,11 +545,12 @@ export function Permissions() {
                             <div className="flex justify-center">
                               <input
                                 type="checkbox"
+                                disabled={!canChangePerms}
                                 checked={perms.view || false}
                                 onChange={(e) =>
-                                  handleCheckboxChange(row.code, 'view', e.target.checked)
+                                  canChangePerms && handleCheckboxChange(row.code, 'view', e.target.checked)
                                 }
-                                className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer"
+                                className="h-4 w-4 rounded border-line text-primary focus:ring-primary accent-primary cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                               />
                             </div>
                           ) : (
@@ -571,14 +582,16 @@ export function Permissions() {
             assigned to{' '}
             <strong className="font-semibold text-ink">{selectedRole}</strong>
           </span>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="md" onClick={handleCancel} className="cursor-pointer">
-              Cancel
-            </Button>
-            <Button variant="primary" size="md" onClick={handleSave} className="flex items-center gap-2 shadow-sm cursor-pointer">
-              <Save size={16} /> Save Changes
-            </Button>
-          </div>
+          {canChangePerms && (
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="md" onClick={handleCancel} className="cursor-pointer">
+                Cancel
+              </Button>
+              <Button variant="primary" size="md" onClick={handleSave} className="flex items-center gap-2 shadow-sm cursor-pointer">
+                <Save size={16} /> Save Changes
+              </Button>
+            </div>
+          )}
         </div>
       </Card>
     </div>
