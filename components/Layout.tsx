@@ -55,10 +55,7 @@ interface NavItem {
 
 interface NavSection {
   label: string
-  /**
-   * For Admin users we use the legacy role-name whitelist.
-   * For staff the section is shown if at least one of its items is visible.
-   */
+  /** If true, hide this entire section from staff even if they have item permissions. */
   adminOnly?: boolean
   /** If true, this section is always visible to every authenticated user. */
   alwaysVisible?: boolean
@@ -161,6 +158,7 @@ const navConfig: NavSection[] = [
         path: '/suppliers',
         icon: Truck,
         permissionCode: 'supplier',
+        permissionAction: 'view',
       },
       {
         name: 'Supply Requests',
@@ -307,9 +305,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
    * Decides whether a section should be shown:
    * - alwaysVisible sections → always shown
    * - Admin: all sections (since admins see everything)
-   * - Staff: only if at least one item in the section is visible
+   * - Staff: only if the section is not Admin-only and at least one item is visible
    */
   const isSectionVisible = (section: NavSection): boolean => {
+    if (section.adminOnly && !isAdmin) return false
     if (section.alwaysVisible) return true
     if (isAdmin) return true
     // For staff: the section is visible if at least one item passes the permission check

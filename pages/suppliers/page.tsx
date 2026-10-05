@@ -26,9 +26,14 @@ import { Card } from '@/components/Card'
 import { Button } from '@/components/Button'
 import { CreateSupplierModal } from '@/components/CreateSupplierModal'
 import { cn } from '@/lib/utils'
+import { useUserStore } from '@/store/user-store'
 
 export function SuppliersPage() {
   const router = useRouter()
+  const user = useUserStore((state) => state.user)
+  const canAddSupplier = user?.role === 'Admin' || Boolean(user?.permissions?.includes('supplier_add'))
+  const canChangeSupplier = user?.role === 'Admin' || Boolean(user?.permissions?.includes('supplier_change'))
+  const canDeleteSupplier = user?.role === 'Admin' || Boolean(user?.permissions?.includes('supplier_delete'))
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -172,13 +177,15 @@ export function SuppliersPage() {
 
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold text-ink tracking-tight">Suppliers</h2>
-          <Button
-            onClick={openAddModal}
-            className="flex items-center gap-2 bg-[#0d7377] hover:bg-[#0a5c60] text-white font-medium px-4 py-2.5 rounded-lg shadow-sm cursor-pointer transition-colors"
-          >
-            <Plus size={18} />
-            <span>Add Supplier</span>
-          </Button>
+          {canAddSupplier && (
+            <Button
+              onClick={openAddModal}
+              className="flex items-center gap-2 bg-[#0d7377] hover:bg-[#0a5c60] text-white font-medium px-4 py-2.5 rounded-lg shadow-sm cursor-pointer transition-colors"
+            >
+              <Plus size={18} />
+              <span>Add Supplier</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -275,7 +282,7 @@ export function SuppliersPage() {
 
                     {/* Status Toggle Switch */}
                     <td className="px-6 py-5 whitespace-nowrap">
-                      <button
+                      {canChangeSupplier ? <button
                         type="button"
                         role="switch"
                         aria-checked={supplier.isActive}
@@ -297,26 +304,30 @@ export function SuppliersPage() {
                             supplier.isActive ? 'translate-x-5' : 'translate-x-0'
                           )}
                         />
-                      </button>
+                      </button> : <span className="text-xs text-ink-soft">{supplier.isActive ? 'Active' : 'Inactive'}</span>}
                     </td>
 
                     {/* Actions */}
                     <td className="px-6 py-5 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-3.5">
-                        <button
-                          onClick={() => openEditModal(supplier)}
-                          className="text-ink-soft hover:text-ink transition-colors cursor-pointer p-1"
-                          title="Edit Supplier"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirm(supplier)}
-                          className="text-ink-soft hover:text-danger-fg transition-colors cursor-pointer p-1"
-                          title="Delete Supplier"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        {canChangeSupplier && (
+                          <button
+                            onClick={() => openEditModal(supplier)}
+                            className="text-ink-soft hover:text-ink transition-colors cursor-pointer p-1"
+                            title="Edit Supplier"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                        )}
+                        {canDeleteSupplier && (
+                          <button
+                            onClick={() => setDeleteConfirm(supplier)}
+                            className="text-ink-soft hover:text-danger-fg transition-colors cursor-pointer p-1"
+                            title="Delete Supplier"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
