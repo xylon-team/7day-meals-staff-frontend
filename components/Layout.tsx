@@ -456,7 +456,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </div>
                 <div className="hidden sm:flex flex-col items-start">
                   <span className="text-sm font-medium leading-none">{user.name}</span>
-                  <span className="text-xs text-ink-soft">{user.role}</span>
+                  <span className="text-xs text-ink-soft">{user.displayRole || user.role}</span>
                 </div>
                 <ChevronDown size={16} className="text-ink-soft hidden sm:block" />
               </button>
@@ -465,7 +465,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <div className="absolute right-0 mt-2 w-48 bg-card rounded-card shadow-card border border-line py-1 z-50">
                   <div className="px-4 py-2 border-b border-line sm:hidden">
                     <p className="text-sm font-medium">{user.name}</p>
-                    <p className="text-xs text-ink-soft">{user.role}</p>
+                    <p className="text-xs text-ink-soft">{user.displayRole || user.role}</p>
                   </div>
                   <Link
                     href="/profile"

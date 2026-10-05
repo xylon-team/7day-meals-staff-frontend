@@ -25,8 +25,29 @@ const mapStaffResponse = (backendStaff: any): Staff => {
     phone_number: backendStaff.phone_number,
     status: backendStaff.status,
     email: backendStaff.credential?.email, // if credential included
-    role: backendStaff.staff_roles?.[0]?.role?.role || 'User', // fallback role
+    role: backendStaff.staff_roles
+      ?.map((assignment: { role?: { role?: string } }) => assignment.role?.role)
+      .filter(Boolean)
+      .join(', ') || 'Staff',
   };
+};
+
+/** Fetch the signed-in staff member's canonical identity with their login token. */
+export const getMyStaffProfile = async (accessToken: string): Promise<Staff> => {
+  const response = await fetch(`${API_URL}/staff-auth/me`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => null);
+    throw new Error(errData?.message || `Error ${response.status}: Failed to fetch your staff profile`);
+  }
+
+  return mapStaffResponse(await response.json());
 };
 
 let mockStaffIdCounter = 2;

@@ -8,6 +8,7 @@ export interface User {
   username: string
   name: string
   role: Role
+  displayRole?: string
   accessToken?: string
   phone?: string
   /**
@@ -25,6 +26,7 @@ interface UserStoreState {
   login: (username: string, role: string, accessToken?: string, id?: number | string, name?: string) => void
   logout: () => void
   updateProfile: (name: string, username: string, phone?: string) => void
+  updateStaffIdentity: (name: string, displayRole: string, username: string, phone?: string) => void
   setPermissions: (permissions: string[]) => void
   setAccessToken: (accessToken: string) => void
 }
@@ -61,6 +63,12 @@ export const useUserStore = create<UserStoreState>()(
               username,
               phone: phone !== undefined ? phone : state.user.phone,
             }
+            : null,
+        })),
+      updateStaffIdentity: (name, displayRole, username, phone) =>
+        set((state) => ({
+          user: state.user
+            ? { ...state.user, name, displayRole, username, phone: phone !== undefined ? phone : state.user.phone }
             : null,
         })),
       setPermissions: (permissions: string[]) =>

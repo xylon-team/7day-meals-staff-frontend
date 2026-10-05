@@ -19,7 +19,7 @@ import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
 import { useUserStore } from '@/store/user-store'
 import { staffLogin } from '@/lib/api/login'
-import { getStaffPermissions } from '@/lib/api/staff'
+import { getMyStaffProfile, getStaffPermissions } from '@/lib/api/staff'
 
 const decodeJwt = (token: string) => {
   try {
@@ -42,7 +42,7 @@ type Role = 'Catering Manager' | 'Inventory Manager'
 
 export function Login() {
   const router = useRouter()
-  const { login, setPermissions } = useUserStore()
+  const { login, logout, updateStaffIdentity, setPermissions } = useUserStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -63,25 +63,21 @@ export function Login() {
       const decoded = decodeJwt(data.access_token)
       const staffId = decoded?.sub
 
-      let staffName = 'Staff Member'
-      let staffRole = 'Staff'
+      // Keep the authorization role distinct from role labels on the staff record.
+      login(email, 'Staff', data.access_token, staffId, 'Staff Member')
 
-      if (email.toLowerCase().includes('catering')) {
-        staffName = 'Catering Manager'
-        staffRole = 'Catering Manager'
-      } else if (email.toLowerCase().includes('inventory')) {
-        staffName = 'Inventory Manager'
-        staffRole = 'Inventory Manager'
-      } else {
-        const namePart = email.split('@')[0]
-        staffName = namePart.charAt(0).toUpperCase() + namePart.slice(1)
+      try {
+        const profile = await getMyStaffProfile(data.access_token)
+        const displayName = [profile.fname, profile.lname].filter(Boolean).join(' ') || 'Staff Member'
+        updateStaffIdentity(displayName, profile.role || 'Staff', profile.email || email, profile.phone_number)
+      } catch (profileError) {
+        logout()
+        throw new Error(profileError instanceof Error
+          ? `Signed in, but failed to load your staff profile: ${profileError.message}`
+          : 'Signed in, but failed to load your staff profile.')
       }
 
-      // Store the user first so the token is persisted
-      login(email, staffRole, data.access_token, staffId, staffName)
-
-      // Then fetch and store their role-based permissions in the background.
-      // We don't block navigation on this — the Layout handles a loading state.
+      // Permissions load in the background; the layout handles their loading state.
       if (staffId) {
         getStaffPermissions(staffId)
           .then((perms) => setPermissions(perms))
@@ -89,8 +85,8 @@ export function Login() {
       }
 
       router.push('/dashboard')
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during authentication.')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred during authentication.')
     } finally {
       setIsLoading(false)
     }
