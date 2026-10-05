@@ -6,8 +6,7 @@ import { useUserStore } from '@/store/user-store'
 import { Input } from '@/components/Input'
 import { Button } from '@/components/Button'
 import { Badge } from '@/components/Badge'
-import { getStaff, getStaffById, updateStaff } from '@/lib/api/staff'
-import { staffLogin } from '@/lib/api/login'
+import { getStaff, getStaffById, updateStaff, changeOwnStaffPassword } from '@/lib/api/staff'
 
 interface ProfileData {
   firstName: string
@@ -215,25 +214,7 @@ export function Profile() {
     }
 
     try {
-      // Verify current password by performing a background login attempt
-      try {
-        await staffLogin({
-          email: user.username,
-          staff_password: passwordData.currentPassword,
-        })
-      } catch (e) {
-        setErrors({ currentPassword: 'Current password is incorrect' })
-        return
-      }
-
-      const activeId = staffId || user?.id
-      if (activeId) {
-        await updateStaff(activeId, {
-          staff_password: passwordData.newPassword,
-        })
-      } else {
-        throw new Error('User ID is missing. Cannot update password on backend.')
-      }
+      await changeOwnStaffPassword(passwordData.currentPassword, passwordData.newPassword)
       
       setPasswordData({
         currentPassword: '',

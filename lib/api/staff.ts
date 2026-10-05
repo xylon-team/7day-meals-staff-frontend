@@ -1,43 +1,14 @@
 import { Staff, CreateStaffDto, UpdateStaffDto } from '../types/staff';
 import { useUserStore } from '@/store/user-store';
-import { adminLogin } from './login';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-let cachedAdminToken: string | null = null;
-
-const getAdminToken = async (): Promise<string | null> => {
-  if (cachedAdminToken) return cachedAdminToken;
-  try {
-    const data = await adminLogin({
-      admin_username: 'admin_local',
-      admin_password: 'admin123',
-    });
-    cachedAdminToken = data.access_token;
-    return cachedAdminToken;
-  } catch (e) {
-    console.warn('Failed background admin login fallback', e);
-    return null;
-  }
-};
-
-const getAuthHeaders = async (): Promise<Record<string, string>> => {
+const getAuthHeaders = (): Record<string, string> => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
   if (typeof window !== 'undefined') {
-    let token = useUserStore.getState().user?.accessToken;
-    const role = useUserStore.getState().user?.role;
-    
-    // If the logged-in user is a staff member, they cannot bypass class-level AdminJwtAuthGuards.
-    // We log in as admin in the background to retrieve an administrative token for profile access.
-    if (role && role !== 'Admin') {
-      const adminToken = await getAdminToken();
-      if (adminToken) {
-        token = adminToken;
-      }
-    }
-
+    const token = useUserStore.getState().user?.accessToken;
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
@@ -97,7 +68,9 @@ export const getStaff = async (): Promise<Staff[]> => {
 };
 
 export const getStaffById = async (id: number | string): Promise<Staff> => {
-  const url = new URL(`${API_URL}/staff/${id}`);
+  const user = useUserStore.getState().user;
+  const isOwnStaffProfile = user?.role !== 'Admin' && String(user?.id) === String(id);
+  const url = new URL(`${API_URL}${isOwnStaffProfile ? '/staff-auth/me' : `/staff/${id}`}`);
 
   try {
     const response = await fetch(url.toString(), {
@@ -155,9 +128,14 @@ export const createStaff = async (data: CreateStaffDto): Promise<Staff> => {
 
 export const updateStaff = async (id: number | string, data: UpdateStaffDto): Promise<Staff> => {
   try {
-    const response = await fetch(`${API_URL}/staff/${id}`, {
+    const user = useUserStore.getState().user;
+    const isOwnStaffProfile = user?.role !== 'Admin' && String(user?.id) === String(id);
+    const url = isOwnStaffProfile
+      ? `${API_URL}/staff-auth/me`
+      : `${API_URL}/staff/${id}`;
+    const response = await fetch(url, {
       method: 'PATCH',
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
 
@@ -167,7 +145,8 @@ export const updateStaff = async (id: number | string, data: UpdateStaffDto): Pr
     }
 
     const result = await response.json();
-    return mapStaffResponse(result);
+    if (result.access_token) useUserStore.getState().setAccessToken(result.access_token);
+    return mapStaffResponse(result.staff ?? result);
   } catch (error: any) {
     if (error instanceof TypeError || error.message?.includes('Failed to fetch')) {
       console.warn(`Backend unavailable, mocking staff update for id ${id}`);
@@ -245,15 +224,11 @@ export const removeStaffRole = async (staffId: number | string, roleId: number):
  */
 export const getStaffPermissions = async (staffId: number | string): Promise<string[]> => {
   try {
-    const adminToken = await getAdminToken();
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (adminToken) {
-      headers['Authorization'] = `Bearer ${adminToken}`;
-    }
-
-    const response = await fetch(`${API_URL}/staff/${staffId}/role`, {
+    const user = useUserStore.getState().user;
+    if (!user || user.role === 'Admin' || String(user.id) !== String(staffId)) return [];
+    const response = await fetch(`${API_URL}/staff-auth/me/permissions`, {
       method: 'GET',
-      headers,
+      headers: getAuthHeaders(),
     });
 
     if (!response.ok) {
@@ -261,21 +236,23 @@ export const getStaffPermissions = async (staffId: number | string): Promise<str
       return [];
     }
 
-    const roles: any[] = await response.json();
-
-    // Collect all permission_type strings across all roles, deduplicating with a Set
-    const permSet = new Set<string>();
-    for (const role of roles) {
-      const rolePermissions: any[] = role.role_permissions ?? [];
-      for (const rp of rolePermissions) {
-        const pType: string | undefined = rp.permission?.permission_type;
-        if (pType) permSet.add(pType);
-      }
-    }
-
-    return Array.from(permSet);
+    return await response.json();
   } catch (error) {
     console.warn(`Error fetching permissions for staff ${staffId}:`, error);
     return [];
   }
+};
+
+export const changeOwnStaffPassword = async (currentPassword: string, newPassword: string): Promise<void> => {
+  const response = await fetch(`${API_URL}/staff-auth/me/password`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+  if (!response.ok) {
+    const errData = await response.json().catch(() => null);
+    throw new Error(errData?.message || `Error ${response.status}: Failed to update password`);
+  }
+  const result = await response.json();
+  if (result.access_token) useUserStore.getState().setAccessToken(result.access_token);
 };

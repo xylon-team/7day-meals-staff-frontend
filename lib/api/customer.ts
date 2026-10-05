@@ -1,43 +1,14 @@
 import { Customer, CustomerStatus, UpdateCustomerDto } from '../types/customer';
 import { useUserStore } from '@/store/user-store';
 
-import { adminLogin } from './login';
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-let cachedAdminToken: string | null = null;
-
-const getAdminToken = async (): Promise<string | null> => {
-  if (cachedAdminToken) return cachedAdminToken;
-  try {
-    const data = await adminLogin({
-      admin_username: 'admin_local',
-      admin_password: 'admin123',
-    });
-    cachedAdminToken = data.access_token;
-    return cachedAdminToken;
-  } catch (e) {
-    console.warn('Failed background admin login fallback', e);
-    return null;
-  }
-};
-
-const getAuthHeaders = async (): Promise<Record<string, string>> => {
+const getAuthHeaders = (): Record<string, string> => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
   if (typeof window !== 'undefined') {
-    let token = useUserStore.getState().user?.accessToken;
-    const role = useUserStore.getState().user?.role;
-
-    // CustomerController uses AdminJwtAuthGuard. If role is not Admin or no token, get an admin token.
-    if (!token || (role && role !== 'Admin')) {
-      const adminToken = await getAdminToken();
-      if (adminToken) {
-        token = adminToken;
-      }
-    }
-
+    const token = useUserStore.getState().user?.accessToken;
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }

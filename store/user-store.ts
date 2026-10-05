@@ -26,6 +26,7 @@ interface UserStoreState {
   logout: () => void
   updateProfile: (name: string, username: string, phone?: string) => void
   setPermissions: (permissions: string[]) => void
+  setAccessToken: (accessToken: string) => void
 }
 
 export const useUserStore = create<UserStoreState>()(
@@ -67,6 +68,10 @@ export const useUserStore = create<UserStoreState>()(
           user: state.user
             ? { ...state.user, permissions }
             : null,
+        })),
+      setAccessToken: (accessToken: string) =>
+        set((state) => ({
+          user: state.user ? { ...state.user, accessToken } : null,
         })),
     }),
     {
