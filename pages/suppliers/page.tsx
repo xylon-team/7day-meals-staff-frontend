@@ -86,7 +86,7 @@ export function SuppliersPage() {
     )
 
     try {
-      const updated = await toggleSupplierStatus(supplier.id, newStatus)
+      const updated = await toggleSupplierStatus(supplier.id, newStatus, supplier)
       setSuppliers((prev) =>
         prev.map((s) => (s.id === updated.id ? updated : s))
       )

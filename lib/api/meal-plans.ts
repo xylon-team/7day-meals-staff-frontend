@@ -16,41 +16,6 @@ const getAuthHeaders = (): Record<string, string> => {
   return headers;
 };
 
-// Local in-memory mock store for meal plans when backend endpoint is unpopulated/404
-let mockMealPlansCounter = 4;
-const mockMealPlans: MealPlan[] = [
-  {
-    id: 1,
-    name: 'Standard Office Week',
-    category: 'Standard',
-    description: 'A balanced weekly plan for office employees.',
-    dietary_preference: 'Vegetarian',
-    is_available: true,
-    price: 9800,
-    food_items: [],
-  },
-  {
-    id: 2,
-    name: 'Vegan Boost',
-    category: 'Vegan',
-    description: 'Plant-based high-protein plan.',
-    dietary_preference: 'Vegan',
-    is_available: true,
-    price: 10500,
-    food_items: [],
-  },
-  {
-    id: 3,
-    name: 'Gluten Free Delight',
-    category: 'Special',
-    description: 'Special dietary plan with no gluten ingredients.',
-    dietary_preference: 'Gluten-Free',
-    is_available: false,
-    price: 11200,
-    food_items: [],
-  },
-];
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mapMealPlanResponse = (backendPlan: any): MealPlan => {
   return {
@@ -83,24 +48,14 @@ const mapMealPlanResponse = (backendPlan: any): MealPlan => {
 
 export const getMealPlans = async (): Promise<MealPlan[]> => {
   const url = `${API_URL}/meal-plan`;
-  try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(url, {
-      method: 'GET',
-      headers,
-    });
-    if (!response.ok) {
-      throw new Error(`Failed to fetch meal plans (HTTP ${response.status})`);
-    }
-    const data = await response.json();
-    if (Array.isArray(data)) {
-      return data.map(mapMealPlanResponse);
-    }
-    return [...mockMealPlans];
-  } catch (error) {
-    console.warn('Backend meal plan endpoint unavailable, returning mock store plans:', error);
-    return [...mockMealPlans];
-  }
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) throw new Error(`Failed to fetch meal plans (HTTP ${response.status})`);
+  const data = await response.json();
+  if (!Array.isArray(data)) throw new Error('Invalid meal plan list response');
+  return data.map(mapMealPlanResponse);
 };
 
 export const createMealPlan = async (data: CreateMealPlanDto): Promise<MealPlan> => {

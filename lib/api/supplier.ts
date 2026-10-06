@@ -109,42 +109,6 @@ const mapSupplierResponse = (item: any): Supplier => {
   };
 };
 
-// Initial mock suppliers matching the reference design for fallback
-let mockSuppliers: Supplier[] = [
-  {
-    id: 1,
-    name: 'Perera Distributors',
-    contactPerson: 'Kamal Perera',
-    email: 'kamal@pereradist.lk',
-    phone: '0771112223',
-    categories: ['Grains', 'Spices'],
-    isActive: true,
-    address: 'Colombo 10',
-  },
-  {
-    id: 2,
-    name: 'Fresh Meats Co.',
-    contactPerson: 'Nimal Silva',
-    email: 'sales@freshmeats.lk',
-    phone: '0719998887',
-    categories: ['Meat', 'Poultry'],
-    isActive: true,
-    address: 'Negombo',
-  },
-  {
-    id: 3,
-    name: 'Lanka Grocers',
-    contactPerson: 'Amara Fernando',
-    email: 'amara@lankagrocers.lk',
-    phone: '0765554443',
-    categories: ['Vegetables', 'Dairy'],
-    isActive: false,
-    address: 'Kandy Road, Kadawatha',
-  },
-];
-
-let supplierIdCounter = 4;
-
 /**
  * Fetch suppliers from the backend API: GET /suppliers (supports ?search= query)
  */
@@ -154,37 +118,15 @@ export const getSuppliers = async (search?: string): Promise<Supplier[]> => {
     url.searchParams.set('search', search.trim());
   }
 
-  try {
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      headers: await getAuthHeaders(),
-    });
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: await getAuthHeaders(),
+  });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch suppliers: ${response.status}`);
-    }
-
-    const data = await response.json();
-    if (Array.isArray(data)) {
-      return data.map(mapSupplierResponse);
-    }
-    return [...mockSuppliers];
-  } catch (error) {
-    console.warn('Backend /suppliers endpoint error or unauthorized, using mock fallback:', error);
-    // Filter mock suppliers if search is provided
-    if (search && search.trim()) {
-      const q = search.trim().toLowerCase();
-      return mockSuppliers.filter(
-        (s) =>
-          s.name.toLowerCase().includes(q) ||
-          s.contactPerson.toLowerCase().includes(q) ||
-          s.email.toLowerCase().includes(q) ||
-          s.phone.toLowerCase().includes(q) ||
-          (s.address && s.address.toLowerCase().includes(q))
-      );
-    }
-    return [...mockSuppliers];
-  }
+  if (!response.ok) throw new Error(`Failed to fetch suppliers: ${response.status}`);
+  const data = await response.json();
+  if (!Array.isArray(data)) throw new Error('Invalid supplier list response');
+  return data.map(mapSupplierResponse);
 };
 
 /**
@@ -192,61 +134,39 @@ export const getSuppliers = async (search?: string): Promise<Supplier[]> => {
  */
 export const toggleSupplierStatus = async (
   id: number,
-  isActive: boolean
+  isActive: boolean,
+  currentSupplier?: Supplier,
 ): Promise<Supplier> => {
-  // Update in-memory state
-  const index = mockSuppliers.findIndex((s) => s.id === id);
-  if (index !== -1) {
-    mockSuppliers[index] = {
-      ...mockSuppliers[index],
-      isActive,
-    };
-  }
+  const headers = await getAuthHeaders();
+  const response = await fetch(
+    isActive ? `${API_URL}/suppliers/${id}` : `${API_URL}/suppliers/${id}/deactivate`,
+    {
+      method: 'PATCH',
+      headers,
+      ...(isActive ? { body: JSON.stringify({ is_active: true }) } : {}),
+    },
+  );
 
+  if (!response.ok) throw new Error(`Failed to update supplier status: ${response.status}`);
+
+  let responseData: Record<string, unknown> = {};
   try {
-    const headers = await getAuthHeaders();
-
-    if (!isActive) {
-      // Backend provides PATCH /suppliers/:id/deactivate which returns { supplier_id, is_active }
-      const response = await fetch(`${API_URL}/suppliers/${id}/deactivate`, {
-        method: 'PATCH',
-        headers,
-      });
-
-      if (response.ok) {
-        if (index !== -1) {
-          mockSuppliers[index] = { ...mockSuppliers[index], isActive: false };
-          return mockSuppliers[index];
-        }
-      }
-    } else {
-      // Activating supplier
-      const response = await fetch(`${API_URL}/suppliers/${id}`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({ is_active: true }),
-      });
-
-      if (response.ok) {
-        if (index !== -1) {
-          mockSuppliers[index] = { ...mockSuppliers[index], isActive: true };
-          return mockSuppliers[index];
-        }
-      }
-    }
-  } catch (error) {
-    console.warn(`Failed to update supplier status on backend for id ${id}:`, error);
+    responseData = await response.json();
+  } catch {
+    // Some status endpoints return no response body.
   }
 
-  if (index !== -1) {
-    return { ...mockSuppliers[index] };
-  }
+  const mapped = mapSupplierResponse({ supplier_id: id, is_active: isActive, ...responseData });
   return {
+    ...currentSupplier,
+    ...mapped,
     id,
-    name: 'Supplier',
-    contactPerson: '',
-    email: '',
-    phone: '',
+    name: mapped.name || currentSupplier?.name || '',
+    contactPerson: mapped.contactPerson || currentSupplier?.contactPerson || '',
+    email: mapped.email || currentSupplier?.email || '',
+    phone: mapped.phone || currentSupplier?.phone || '',
+    categories: mapped.categories?.length ? mapped.categories : currentSupplier?.categories || [],
+    address: mapped.address || currentSupplier?.address || '',
     isActive,
   };
 };
@@ -262,158 +182,74 @@ export const createSupplier = async (
     address_line_1: dto.address?.trim() || dto.address_line_1?.trim() || undefined,
   };
 
-  try {
-    const response = await fetch(`${API_URL}/suppliers`, {
-      method: 'POST',
-      headers: await getAuthHeaders(),
-      body: JSON.stringify(payload),
-    });
+  const response = await fetch(`${API_URL}/suppliers`, {
+    method: 'POST',
+    headers: await getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
 
-    if (!response.ok) {
-      let errorMsg = `Supplier creation failed (Status ${response.status})`;
-      try {
-        const errJson = await response.json();
-        if (errJson && errJson.message) {
-          errorMsg = Array.isArray(errJson.message)
-            ? errJson.message.join(', ')
-            : String(errJson.message);
-        }
-      } catch {
-        // Ignore json parse error
+  if (!response.ok) {
+    let errorMsg = `Supplier creation failed (Status ${response.status})`;
+    try {
+      const errJson = await response.json();
+      if (errJson && errJson.message) {
+        errorMsg = Array.isArray(errJson.message)
+          ? errJson.message.join(', ')
+          : String(errJson.message);
       }
-      throw new Error(errorMsg);
+    } catch {
+      // Ignore json parse error
     }
-
-    const data = await response.json();
-    if (data && typeof data === 'object') {
-      let created = mapSupplierResponse(data);
-      created.isActive = dto.isActive ?? true;
-
-      // Handle active state if set to false on creation
-      if (dto.isActive === false) {
-        try {
-          await toggleSupplierStatus(created.id, false);
-          created.isActive = false;
-        } catch {
-          created.isActive = false;
-        }
-      }
-
-      // Add to local state cache
-      mockSuppliers = [created, ...mockSuppliers.filter((s) => s.id !== created.id)];
-      return created;
-    }
-  } catch (error: any) {
-    console.warn('Backend supplier creation request error:', error);
-
-    // If fetch failed due to network / offline server, fall back to creating in local mock state
-    if (error.message && (error.message.includes('Failed to fetch') || error.message.includes('NetworkError'))) {
-      const fallbackSupplier: Supplier = {
-        id: supplierIdCounter++,
-        name: dto.name,
-        contactPerson: dto.contactPerson,
-        email: dto.email,
-        phone: dto.phone,
-        isActive: dto.isActive ?? true,
-        address: dto.address || '',
-      };
-      mockSuppliers = [fallbackSupplier, ...mockSuppliers];
-      return fallbackSupplier;
-    }
-
-    throw error;
+    throw new Error(errorMsg);
   }
 
-  const fallbackSupplier: Supplier = {
-    id: supplierIdCounter++,
-    name: dto.name,
-    contactPerson: dto.contactPerson,
-    email: dto.email,
-    phone: dto.phone,
-    isActive: dto.isActive ?? true,
-    address: dto.address || '',
-  };
-  mockSuppliers = [fallbackSupplier, ...mockSuppliers];
-  return fallbackSupplier;
+  const data = await response.json();
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('Invalid supplier creation response');
+  }
+  const created = mapSupplierResponse(data);
+  created.isActive = dto.isActive ?? created.isActive;
+
+  if (dto.isActive === false) {
+    return toggleSupplierStatus(created.id, false, created);
+  }
+  return created;
 };
 
 export const updateSupplier = async (
   id: number,
   dto: UpdateSupplierDto
 ): Promise<Supplier> => {
-  const index = mockSuppliers.findIndex((s) => s.id === id);
-  let updatedSupplier: Supplier = {
-    ...(index !== -1
-      ? mockSuppliers[index]
-      : { id, name: '', contactPerson: '', email: '', phone: '', isActive: true }),
-    ...dto,
-    name: dto.name ?? (index !== -1 ? mockSuppliers[index].name : ''),
-    contactPerson: dto.contactPerson ?? (index !== -1 ? mockSuppliers[index].contactPerson : ''),
-    email: dto.email ?? (index !== -1 ? mockSuppliers[index].email : ''),
-    phone: dto.phone ?? (index !== -1 ? mockSuppliers[index].phone : ''),
-    address: dto.address ?? (index !== -1 ? mockSuppliers[index].address : ''),
-    isActive: dto.isActive !== undefined ? dto.isActive : (index !== -1 ? mockSuppliers[index].isActive : true),
-  };
+  const response = await fetch(`${API_URL}/suppliers/${id}`, {
+    method: 'PATCH',
+    headers: await getAuthHeaders(),
+    body: JSON.stringify({
+      name: dto.name,
+      agent_name: dto.contactPerson,
+      email: dto.email,
+      phone_number: dto.phone,
+      address_line_1: dto.address,
+    }),
+  });
 
-  try {
-    const response = await fetch(`${API_URL}/suppliers/${id}`, {
-      method: 'PATCH',
-      headers: await getAuthHeaders(),
-      body: JSON.stringify({
-        name: dto.name,
-        agent_name: dto.contactPerson,
-        email: dto.email,
-        phone_number: dto.phone,
-        address_line_1: dto.address,
-      }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      if (data && typeof data === 'object') {
-        const backendResult = mapSupplierResponse(data);
-        updatedSupplier = {
-          ...updatedSupplier,
-          ...backendResult,
-          name: backendResult.name || updatedSupplier.name,
-          contactPerson: backendResult.contactPerson || updatedSupplier.contactPerson,
-          email: backendResult.email || updatedSupplier.email,
-          phone: backendResult.phone || updatedSupplier.phone,
-          address: backendResult.address || updatedSupplier.address,
-          isActive: dto.isActive !== undefined ? dto.isActive : updatedSupplier.isActive,
-        };
-      }
-    }
-
-    if (dto.isActive === false) {
-      try {
-        await toggleSupplierStatus(id, false);
-        updatedSupplier.isActive = false;
-      } catch (e) {
-        console.warn('Deactivation failed:', e);
-      }
-    }
-  } catch (error) {
-    console.warn(`Backend supplier update failed for id ${id}:`, error);
+  if (!response.ok) throw new Error(`Failed to update supplier ${id}: ${response.status}`);
+  const data = await response.json();
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('Invalid supplier update response');
   }
 
-  if (index !== -1) {
-    mockSuppliers[index] = updatedSupplier;
+  let updatedSupplier: Supplier = { ...mapSupplierResponse(data), ...dto, id };
+  if (dto.isActive === false) {
+    updatedSupplier = await toggleSupplierStatus(id, false, updatedSupplier);
   }
   return updatedSupplier;
 };
 
 export const deleteSupplier = async (id: number): Promise<boolean> => {
-  mockSuppliers = mockSuppliers.filter((s) => s.id !== id);
-
-  try {
-    const response = await fetch(`${API_URL}/suppliers/${id}`, {
-      method: 'DELETE',
-      headers: await getAuthHeaders(),
-    });
-    return response.ok;
-  } catch (error) {
-    console.warn(`Backend supplier delete failed for id ${id}:`, error);
-    return true;
-  }
+  const response = await fetch(`${API_URL}/suppliers/${id}`, {
+    method: 'DELETE',
+    headers: await getAuthHeaders(),
+  });
+  if (!response.ok) throw new Error(`Failed to delete supplier ${id}: ${response.status}`);
+  return true;
 };

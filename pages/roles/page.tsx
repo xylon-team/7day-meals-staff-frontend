@@ -18,32 +18,6 @@ interface PermissionRow {
   actions: ('add' | 'change' | 'delete' | 'view')[]
 }
 
-const defaultPermissionsList: PermissionRow[] = [
-  { code: 'meal_item', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'meal_package', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'promotion', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'customer', isParent: false, actions: ['delete', 'view'] },
-  { code: 'orders', isParent: false, actions: ['change', 'delete', 'view'] },
-  { code: 'customer_feedback', isParent: false, actions: ['change', 'view'] },
-  { code: 'payment_record', isParent: false, actions: ['view'] },
-  { code: 'complaints', isParent: false, actions: ['change', 'view'] },
-  { code: 'meal_report', isParent: false, actions: ['add', 'view'] },
-  { code: 'logs', isParent: false, actions: ['view'] },
-  { code: 'supplier', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'inventory_item', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'low_stock_threshold', isParent: false, actions: ['add', 'change', 'view'] },
-  { code: 'restock', isParent: false, actions: ['add', 'view'] },
-  { code: 'restock_history', isParent: false, actions: ['view'] },
-  { code: 'supply_request', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'inventory_report', isParent: false, actions: ['add', 'view'] },
-  { code: 'system_settings', isParent: false, actions: ['change', 'view'] },
-  { code: 'permission_assign', isParent: false, actions: ['change', 'view'] },
-  { code: 'role', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'staff', isParent: false, actions: ['add', 'change', 'delete', 'view'] },
-  { code: 'analysis_report', isParent: false, actions: ['add', 'view'] },
-  { code: 'recovery_account', isParent: false, actions: ['change', 'view'] },
-]
-
 const parsePermissionType = (type: string) => {
   if (!type) return null
   const lastUnderscoreIndex = type.lastIndexOf('_')
@@ -71,7 +45,9 @@ export function Permissions() {
   const [selectedRole, setSelectedRole] = useState<Role>('Catering Manager')
   const [apiRolesList, setApiRolesList] = useState<ApiRole[]>([])
   const [masterPermissionsMap, setMasterPermissionsMap] = useState<Record<string, number>>({})
-  const [permissionsList, setPermissionsList] = useState<PermissionRow[]>(defaultPermissionsList)
+  const [permissionsList, setPermissionsList] = useState<PermissionRow[]>([])
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   const fetchRoles = useCallback(async () => {
     try {
@@ -86,13 +62,15 @@ export function Permissions() {
       }
     } catch (error) {
       console.warn('Failed to fetch roles', error)
+      setLoadError('Could not load roles. Check your connection and retry.')
+      throw error
     }
   }, [searchParams])
 
   useEffect(() => {
     const fetchInitialData = async () => {
-      await fetchRoles()
       try {
+        await fetchRoles()
         const allPerms = (await getAllPermissions()) as DbPermission[]
         const permsMap: Record<string, number> = {}
         allPerms.forEach((p) => {
@@ -129,12 +107,43 @@ export function Permissions() {
         if (dynamicList.length > 0) {
           setPermissionsList(dynamicList)
         }
+        setLoadError(null)
       } catch (e) {
         console.warn('Failed to fetch master permissions', e)
+        setPermissionsList([])
+        setLoadError('Could not load roles and permissions. Check your connection and retry.')
+      } finally {
+        setIsLoading(false)
       }
     }
     fetchInitialData()
   }, [searchParams, fetchRoles])
+
+  const retryLoad = () => {
+    setLoadError(null)
+    setIsLoading(true)
+    void fetchRoles()
+      .then(() => getAllPermissions())
+      .then((allPerms) => {
+        const permissions = allPerms as DbPermission[]
+        const permsMap: Record<string, number> = {}
+        const moduleMap: Record<string, ('add' | 'change' | 'delete' | 'view')[]> = {}
+        permissions.forEach((permission) => {
+          if (permission.permission_type) {
+            permsMap[permission.permission_type] = permission.permission_id
+            const parsed = parsePermissionType(permission.permission_type)
+            if (parsed) {
+              const actions = moduleMap[parsed.modCode] || (moduleMap[parsed.modCode] = [])
+              if (!actions.includes(parsed.action)) actions.push(parsed.action)
+            }
+          }
+        })
+        setMasterPermissionsMap(permsMap)
+        setPermissionsList(Object.keys(moduleMap).sort().map(code => ({ code, isParent: false, actions: moduleMap[code] })))
+      })
+      .catch(() => setLoadError('Could not load roles and permissions. Check your connection and retry.'))
+      .finally(() => setIsLoading(false))
+  }
   
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
@@ -251,6 +260,7 @@ export function Permissions() {
   const { checkedCount, totalCount } = calculateStats()
 
   const handleSave = async () => {
+    if (isLoading || loadError) return
     const activeRole = apiRolesList.find(r => r.role === selectedRole)
     if (!activeRole) return
 
@@ -330,6 +340,12 @@ export function Permissions() {
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div role="alert" className="flex items-center justify-between gap-4 rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <span>{loadError}</span>
+          <Button variant="primary" size="sm" onClick={retryLoad}>Retry</Button>
+        </div>
+      )}
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2 bg-[#0d7377] text-white px-4 py-3 rounded-card shadow-lg animate-in fade-in slide-in-from-bottom-5 duration-300">
@@ -352,7 +368,7 @@ export function Permissions() {
           <p className="text-sm text-ink-soft mt-1">Assign specific module permissions to roles</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="primary" size="md" onClick={handleSave} className="flex items-center gap-2 shadow-sm shrink-0">
+          <Button variant="primary" size="md" onClick={handleSave} disabled={isLoading || !!loadError || apiRolesList.length === 0} className="flex items-center gap-2 shadow-sm shrink-0">
             <Save size={16} /> Save Changes
           </Button>
         </div>

@@ -1,4 +1,4 @@
-import { Role, CreateRoleDto, UpdateRoleDto, Permission } from '../types/roles';
+import { Role, CreateRoleDto, UpdateRoleDto } from '../types/roles';
 import { useUserStore } from '@/store/user-store';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -28,34 +28,21 @@ const mapRoleResponse = (backendRole: any): Role => {
   };
 };
 
-let mockRolesIdCounter = 3;
-const mockRoles: Role[] = [
-  { id: 1, role: 'Admin', description: 'System Administrator', permissions: [] },
-  { id: 2, role: 'Manager', description: 'Store Manager', permissions: [] }
-];
-
 export const getRoles = async (includePermissions: boolean = false): Promise<Role[]> => {
   const url = new URL(`${API_URL}/role`);
   if (includePermissions) {
     url.searchParams.append('includePermissions', 'true');
   }
 
-  try {
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch roles');
-    }
-
-    const data = await response.json();
-    return data.map(mapRoleResponse);
-  } catch (error) {
-    console.info('Backend unavailable, returning mock roles data');
-    return [...mockRoles];
-  }
+  if (!response.ok) throw new Error(`Failed to fetch roles: ${response.status}`);
+  const data = await response.json();
+  if (!Array.isArray(data)) throw new Error('Invalid role list response');
+  return data.map(mapRoleResponse);
 };
 
 export const getRoleById = async (id: number | string, includePermissions: boolean = false): Promise<Role> => {
@@ -64,134 +51,74 @@ export const getRoleById = async (id: number | string, includePermissions: boole
     url.searchParams.append('includePermissions', 'true');
   }
 
-  try {
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch role');
-    }
-
-    const data = await response.json();
-    return mapRoleResponse(data);
-  } catch (error) {
-    console.warn(`Backend unavailable, returning mock role data for id ${id}`);
-    const role = mockRoles.find(r => r.id === Number(id));
-    if (!role) throw new Error('Role not found');
-    return { ...role };
-  }
+  if (!response.ok) throw new Error(`Failed to fetch role ${id}: ${response.status}`);
+  return mapRoleResponse(await response.json());
 };
 
 export const createRole = async (data: CreateRoleDto): Promise<Role> => {
-  try {
-    const response = await fetch(`${API_URL}/role`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
+  const response = await fetch(`${API_URL}/role`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
 
-    if (!response.ok) {
-      throw new Error('Failed to create role');
-    }
-
-    const result = await response.json();
-    return mapRoleResponse(result);
-  } catch (error) {
-    console.warn('Backend unavailable, mocking role creation');
-    const newRole: Role = {
-      id: mockRolesIdCounter++,
-      role: data.role,
-      description: data.description,
-      permissions: []
-    };
-    mockRoles.push(newRole);
-    return { ...newRole };
-  }
+  if (!response.ok) throw new Error(`Failed to create role: ${response.status}`);
+  return mapRoleResponse(await response.json());
 };
 
 export const updateRole = async (id: number | string, data: UpdateRoleDto): Promise<Role> => {
-  try {
-    const response = await fetch(`${API_URL}/role/${id}`, {
-      method: 'PATCH',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
+  const response = await fetch(`${API_URL}/role/${id}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
 
-    if (!response.ok) {
-      throw new Error('Failed to update role');
-    }
-
-    const result = await response.json();
-    return mapRoleResponse(result);
-  } catch (error) {
-    console.warn(`Backend unavailable, mocking role update for id ${id}`);
-    const index = mockRoles.findIndex(r => r.id === Number(id));
-    if (index === -1) throw new Error('Role not found');
-    mockRoles[index] = { ...mockRoles[index], ...data };
-    return { ...mockRoles[index] };
-  }
+  if (!response.ok) throw new Error(`Failed to update role ${id}: ${response.status}`);
+  return mapRoleResponse(await response.json());
 };
 
 export const deleteRole = async (id: number | string): Promise<void> => {
-  try {
-    const response = await fetch(`${API_URL}/role/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
+  const response = await fetch(`${API_URL}/role/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
 
-    if (!response.ok) {
-      throw new Error('Failed to delete role');
-    }
-  } catch (error) {
-    console.warn(`Backend unavailable, mocking role deletion for id ${id}`);
-    const index = mockRoles.findIndex(r => r.id === Number(id));
-    if (index !== -1) {
-      mockRoles.splice(index, 1);
-    }
-  }
+  if (!response.ok) throw new Error(`Failed to delete role ${id}: ${response.status}`);
 };
 
 export const getAllPermissions = async (): Promise<any[]> => {
   const url = `${API_URL}/role/permissions`;
-  try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
-    if (!response.ok) throw new Error('Failed to fetch permissions');
-    return await response.json();
-  } catch (error) {
-    console.info('Backend unavailable, mocking getAllPermissions');
-    return [];
-  }
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) throw new Error(`Failed to fetch permissions: ${response.status}`);
+  const data = await response.json();
+  if (!Array.isArray(data)) throw new Error('Invalid permissions response');
+  return data;
 };
 
 export const assignRolePermissions = async (roleId: number | string, permissionIds: number[]): Promise<void> => {
   const url = `${API_URL}/role/${roleId}/permissions`;
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ permissionIds }),
-    });
-    if (!response.ok) throw new Error('Failed to assign permissions');
-  } catch (error) {
-    console.warn(`Backend unavailable, mocking assignRolePermissions for role ${roleId}`);
-  }
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ permissionIds }),
+  });
+  if (!response.ok) throw new Error(`Failed to assign permissions to role ${roleId}: ${response.status}`);
 };
 
 export const removeRolePermissions = async (roleId: number | string, permissionIds: number[]): Promise<void> => {
   const url = `${API_URL}/role/${roleId}/permissions`;
-  try {
-    const response = await fetch(url, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ permissionIds }),
-    });
-    if (!response.ok) throw new Error('Failed to remove permissions');
-  } catch (error) {
-    console.warn(`Backend unavailable, mocking removeRolePermissions for role ${roleId}`);
-  }
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ permissionIds }),
+  });
+  if (!response.ok) throw new Error(`Failed to remove permissions from role ${roleId}: ${response.status}`);
 };

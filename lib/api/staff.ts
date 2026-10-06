@@ -50,42 +50,21 @@ export const getMyStaffProfile = async (accessToken: string): Promise<Staff> => 
   return mapStaffResponse(await response.json());
 };
 
-let mockStaffIdCounter = 2;
-const mockStaffList: Staff[] = [
-  {
-    id: 1,
-    fname: 'Sanir',
-    lname: 'Dev',
-    phone_number: '+94771234567',
-    status: 'active' as any,
-    email: 'san@mail.com',
-    role: 'Admin'
-  }
-];
-
 export const getStaff = async (): Promise<Staff[]> => {
   const url = new URL(`${API_URL}/staff`);
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: await getAuthHeaders(),
+  });
 
-  try {
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      headers: await getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      const errData = await response.json().catch(() => null);
-      throw new Error(errData?.message || `Error ${response.status}: Failed to fetch staff list`);
-    }
-
-    const data = await response.json();
-    return data.map(mapStaffResponse);
-  } catch (error: any) {
-    if (error instanceof TypeError || error.message?.includes('Failed to fetch')) {
-      console.warn('Backend unavailable, returning mock staff data');
-      return [...mockStaffList];
-    }
-    throw error;
+  if (!response.ok) {
+    const errData = await response.json().catch(() => null);
+    throw new Error(errData?.message || `Error ${response.status}: Failed to fetch staff list`);
   }
+
+  const data = await response.json();
+  if (!Array.isArray(data)) throw new Error('Invalid staff list response');
+  return data.map(mapStaffResponse);
 };
 
 export const getStaffById = async (id: number | string): Promise<Staff> => {
@@ -93,147 +72,88 @@ export const getStaffById = async (id: number | string): Promise<Staff> => {
   const isOwnStaffProfile = user?.role !== 'Admin' && String(user?.id) === String(id);
   const url = new URL(`${API_URL}${isOwnStaffProfile ? '/staff-auth/me' : `/staff/${id}`}`);
 
-  try {
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      headers: await getAuthHeaders(),
-    });
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: await getAuthHeaders(),
+  });
 
-    if (!response.ok) {
-      const errData = await response.json().catch(() => null);
-      throw new Error(errData?.message || `Error ${response.status}: Failed to fetch staff details`);
-    }
-
-    const data = await response.json();
-    return mapStaffResponse(data);
-  } catch (error: any) {
-    if (error instanceof TypeError || error.message?.includes('Failed to fetch')) {
-      console.warn(`Backend unavailable, returning mock staff data for id ${id}`);
-      const staff = mockStaffList.find(s => s.id === Number(id));
-      if (staff) return { ...staff };
-      throw new Error('Staff not found in local mock data');
-    }
-    throw error;
+  if (!response.ok) {
+    const errData = await response.json().catch(() => null);
+    throw new Error(errData?.message || `Error ${response.status}: Failed to fetch staff details`);
   }
+
+  return mapStaffResponse(await response.json());
 };
 
 export const createStaff = async (data: CreateStaffDto): Promise<Staff> => {
-  try {
-    const response = await fetch(`${API_URL}/staff`, {
-      method: 'POST',
-      headers: await getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
+  const response = await fetch(`${API_URL}/staff`, {
+    method: 'POST',
+    headers: await getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
 
-    if (!response.ok) {
-      throw new Error('Failed to create staff');
-    }
-
-    const result = await response.json();
-    return mapStaffResponse(result);
-  } catch (error) {
-    console.warn('Backend unavailable, mocking staff creation');
-    const newStaff: Staff = {
-      id: mockStaffIdCounter++,
-      fname: data.fname,
-      lname: data.lname,
-      phone_number: data.phone_number,
-      status: data.status as any,
-      email: data.email,
-      role: 'Admin'
-    };
-    mockStaffList.push(newStaff);
-    return { ...newStaff };
+  if (!response.ok) {
+    const errData = await response.json().catch(() => null);
+    throw new Error(errData?.message || `Error ${response.status}: Failed to create staff`);
   }
+
+  return mapStaffResponse(await response.json());
 };
 
 export const updateStaff = async (id: number | string, data: UpdateStaffDto): Promise<Staff> => {
-  try {
-    const user = useUserStore.getState().user;
-    const isOwnStaffProfile = user?.role !== 'Admin' && String(user?.id) === String(id);
-    const url = isOwnStaffProfile
-      ? `${API_URL}/staff-auth/me`
-      : `${API_URL}/staff/${id}`;
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
+  const user = useUserStore.getState().user;
+  const isOwnStaffProfile = user?.role !== 'Admin' && String(user?.id) === String(id);
+  const url = isOwnStaffProfile
+    ? `${API_URL}/staff-auth/me`
+    : `${API_URL}/staff/${id}`;
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
 
-    if (!response.ok) {
-      const errData = await response.json().catch(() => null);
-      throw new Error(errData?.message || `Error ${response.status}: Failed to update staff`);
-    }
-
-    const result = await response.json();
-    if (result.access_token) useUserStore.getState().setAccessToken(result.access_token);
-    return mapStaffResponse(result.staff ?? result);
-  } catch (error: any) {
-    if (error instanceof TypeError || error.message?.includes('Failed to fetch')) {
-      console.warn(`Backend unavailable, mocking staff update for id ${id}`);
-      const index = mockStaffList.findIndex(s => s.id === Number(id));
-      if (index !== -1) {
-        mockStaffList[index] = {
-          ...mockStaffList[index],
-          ...(data.fname && { fname: data.fname }),
-          ...(data.lname && { lname: data.lname }),
-          ...(data.phone_number && { phone_number: data.phone_number }),
-          ...(data.status && { status: data.status as any }),
-          ...(data.email && { email: data.email })
-        };
-        return { ...mockStaffList[index] };
-      }
-      throw new Error('Staff not found in local mock data');
-    }
-    throw error;
+  if (!response.ok) {
+    const errData = await response.json().catch(() => null);
+    throw new Error(errData?.message || `Error ${response.status}: Failed to update staff`);
   }
+
+  const result = await response.json();
+  if (result.access_token) useUserStore.getState().setAccessToken(result.access_token);
+  return mapStaffResponse(result.staff ?? result);
 };
 
 export const deleteStaff = async (id: number | string): Promise<void> => {
-  try {
-    const response = await fetch(`${API_URL}/staff/${id}`, {
-      method: 'DELETE',
-      headers: await getAuthHeaders(),
-    });
+  const response = await fetch(`${API_URL}/staff/${id}`, {
+    method: 'DELETE',
+    headers: await getAuthHeaders(),
+  });
 
-    if (!response.ok) {
-      throw new Error('Failed to delete staff');
-    }
-  } catch (error) {
-    console.warn(`Backend unavailable, mocking staff deletion for id ${id}`);
-    const index = mockStaffList.findIndex(s => s.id === Number(id));
-    if (index !== -1) {
-      mockStaffList.splice(index, 1);
-    }
+  if (!response.ok) {
+    const errData = await response.json().catch(() => null);
+    throw new Error(errData?.message || `Error ${response.status}: Failed to delete staff`);
   }
 };
 
 export const assignStaffRole = async (staffId: number | string, roleId: number): Promise<void> => {
-  try {
-    const response = await fetch(`${API_URL}/staff/${staffId}/role`, {
-      method: 'POST',
-      headers: await getAuthHeaders(),
-      body: JSON.stringify([roleId]),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to assign staff role');
-    }
-  } catch (error) {
-    console.warn(`Failed to assign role to staff ${staffId}`, error);
+  const response = await fetch(`${API_URL}/staff/${staffId}/role`, {
+    method: 'POST',
+    headers: await getAuthHeaders(),
+    body: JSON.stringify([roleId]),
+  });
+  if (!response.ok) {
+    const errData = await response.json().catch(() => null);
+    throw new Error(errData?.message || `Error ${response.status}: Failed to assign staff role`);
   }
 };
 
 export const removeStaffRole = async (staffId: number | string, roleId: number): Promise<void> => {
-  try {
-    const response = await fetch(`${API_URL}/staff/${staffId}/role/${roleId}`, {
-      method: 'DELETE',
-      headers: await getAuthHeaders(),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to remove staff role');
-    }
-  } catch (error) {
-    console.warn(`Failed to remove role ${roleId} from staff ${staffId}`, error);
+  const response = await fetch(`${API_URL}/staff/${staffId}/role/${roleId}`, {
+    method: 'DELETE',
+    headers: await getAuthHeaders(),
+  });
+  if (!response.ok) {
+    const errData = await response.json().catch(() => null);
+    throw new Error(errData?.message || `Error ${response.status}: Failed to remove staff role`);
   }
 };
 
