@@ -14,7 +14,6 @@ import {
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-import { Badge } from '@/components/Badge'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
 import { useUserStore } from '@/store/user-store'
@@ -37,8 +36,6 @@ const decodeJwt = (token: string) => {
     return null
   }
 }
-
-type Role = 'Catering Manager' | 'Inventory Manager'
 
 export function Login() {
   const router = useRouter()
@@ -90,16 +87,6 @@ export function Login() {
       setError(err instanceof Error ? err.message : 'An error occurred during authentication.')
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const fillCredentials = (role: Role) => {
-    if (role === 'Catering Manager') {
-      setEmail('catering@7daymeals.lk')
-      setPassword('Catering@7DM2024')
-    } else if (role === 'Inventory Manager') {
-      setEmail('inventory@7daymeals.lk')
-      setPassword('Inventory@7DM2024')
     }
   }
 
@@ -238,23 +225,9 @@ export function Login() {
           </form>
 
           <div className="mt-8 pt-6 border-t border-line">
-            <p className="text-xs text-center text-ink-soft mb-4 uppercase tracking-wider font-semibold">
-              Demo Accounts
+            <p className="text-sm text-center text-ink-soft">
+              Sign in with the staff credentials provided by your administrator.
             </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              <button
-                onClick={() => fillCredentials('Catering Manager')}
-                className="hover:opacity-80 transition-opacity"
-              >
-                <Badge variant="warning">Catering Manager</Badge>
-              </button>
-              <button
-                onClick={() => fillCredentials('Inventory Manager')}
-                className="hover:opacity-80 transition-opacity"
-              >
-                <Badge variant="success">Inventory Manager</Badge>
-              </button>
-            </div>
           </div>
         </div>
       </div>
