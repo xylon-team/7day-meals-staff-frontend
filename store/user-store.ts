@@ -1,6 +1,32 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
+const USER_STORAGE_KEY = '7day-meals-user-storage'
+const REMEMBER_ME_KEY = '7day-meals-remember-staff-session'
+
+const getSelectedStorage = () => {
+  if (typeof window === 'undefined') return undefined
+  return window.localStorage.getItem(REMEMBER_ME_KEY) === 'false'
+    ? window.sessionStorage
+    : window.localStorage
+}
+
+const userStorage = {
+  getItem: (name: string) => getSelectedStorage()?.getItem(name) ?? null,
+  setItem: (name: string, value: string) => {
+    const selectedStorage = getSelectedStorage()
+    if (!selectedStorage || typeof window === 'undefined') return
+    const otherStorage = selectedStorage === window.localStorage ? window.sessionStorage : window.localStorage
+    selectedStorage.setItem(name, value)
+    otherStorage.removeItem(name)
+  },
+  removeItem: (name: string) => {
+    if (typeof window === 'undefined') return
+    window.localStorage.removeItem(name)
+    window.sessionStorage.removeItem(name)
+  },
+}
+
 export type Role = string
 
 export interface User {
@@ -23,7 +49,7 @@ interface UserStoreState {
   user: User | null
   hasHydrated: boolean
   setHasHydrated: (state: boolean) => void
-  login: (username: string, role: string, accessToken?: string, id?: number | string, name?: string) => void
+  login: (username: string, role: string, accessToken?: string, id?: number | string, name?: string, rememberMe?: boolean) => void
   logout: () => void
   updateProfile: (name: string, username: string, phone?: string) => void
   updateStaffIdentity: (name: string, displayRole: string, username: string, phone?: string) => void
@@ -37,7 +63,13 @@ export const useUserStore = create<UserStoreState>()(
       user: null,
       hasHydrated: false,
       setHasHydrated: (hasHydrated: boolean) => set({ hasHydrated }),
-      login: (username: string, role: string, accessToken?: string, id?: number | string, name?: string) =>
+      login: (username: string, role: string, accessToken?: string, id?: number | string, name?: string, rememberMe = true) => {
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(REMEMBER_ME_KEY, String(rememberMe))
+          // Clear any previous session copy so login respects the new checkbox choice.
+          window.localStorage.removeItem(USER_STORAGE_KEY)
+          window.sessionStorage.removeItem(USER_STORAGE_KEY)
+        }
         set({
           user: {
             id,
@@ -52,7 +84,8 @@ export const useUserStore = create<UserStoreState>()(
             role: role as Role,
             accessToken,
           },
-        }),
+        })
+      },
       logout: () => set({ user: null }),
       updateProfile: (name: string, username: string, phone?: string) =>
         set((state) => ({
@@ -84,7 +117,7 @@ export const useUserStore = create<UserStoreState>()(
     }),
     {
       name: '7day-meals-user-storage',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => userStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true)
       },

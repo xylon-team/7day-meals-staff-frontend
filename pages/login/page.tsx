@@ -46,6 +46,7 @@ export function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
@@ -64,7 +65,7 @@ export function Login() {
       const staffId = decoded?.sub
 
       // Keep the authorization role distinct from role labels on the staff record.
-      login(email, 'Staff', data.access_token, staffId, 'Staff Member')
+      login(email, 'Staff', data.access_token, staffId, 'Staff Member', rememberMe)
 
       try {
         const profile = await getMyStaffProfile(data.access_token)
@@ -203,6 +204,8 @@ export function Login() {
               <input
                 id="remember"
                 type="checkbox"
+                checked={rememberMe}
+                onChange={(event) => setRememberMe(event.target.checked)}
                 className="h-4 w-4 rounded border-line text-primary focus:ring-primary"
               />
               <label
