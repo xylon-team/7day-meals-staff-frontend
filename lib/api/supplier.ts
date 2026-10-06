@@ -3,48 +3,12 @@ import { useUserStore } from '@/store/user-store';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-let cachedStaffToken: string | null = null;
-
-const getStaffToken = async (): Promise<string | null> => {
-  if (cachedStaffToken) return cachedStaffToken;
-  try {
-    const res = await fetch(`${API_URL}/staff-auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: 'selenium_test_1784891838270@7daymeals.lk',
-        staff_password: 'Test@1234',
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      cachedStaffToken = data.access_token;
-      return cachedStaffToken;
-    }
-  } catch (e) {
-    console.warn('Failed background staff login fallback', e);
-  }
-  return null;
-};
-
 const getAuthHeaders = async (): Promise<Record<string, string>> => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
   if (typeof window !== 'undefined') {
-    let token = useUserStore.getState().user?.accessToken;
-    const role = useUserStore.getState().user?.role;
-
-    // The backend SupplierController is guarded by StaffJwtAuthGuard with supplier_view permission.
-    // If the logged-in user is an Admin, their token is an AdminJwt token, which StaffJwtAuthGuard rejects with 401.
-    // We obtain a valid staff token in the background so that Admin users can seamlessly access the Suppliers API.
-    if (role === 'Admin' || !token) {
-      const staffToken = await getStaffToken();
-      if (staffToken) {
-        token = staffToken;
-      }
-    }
-
+    const token = useUserStore.getState().user?.accessToken;
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
