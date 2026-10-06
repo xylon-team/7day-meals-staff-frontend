@@ -56,36 +56,7 @@ export const getOrders = async (): Promise<Order[]> => {
     }
     
     const ordersData = await ordersRes.json();
-    let customersData: any[] = [];
-    let mealsData: any[] = [];
-    
-    // Fetch customers defensively
-    try {
-      const customersRes = await fetch(`${API_URL}/customer`, { method: 'GET', headers: getAuthHeaders() });
-      if (customersRes.ok) {
-        const text = await customersRes.text();
-        try { customersData = JSON.parse(text); } catch (e) {}
-      }
-    } catch (e) {}
-
-    // Fetch meal plans defensively
-    try {
-      const mealsRes = await fetch(`${API_URL}/meal-plan`, { method: 'GET', headers: getAuthHeaders() });
-      if (mealsRes.ok) {
-        const text = await mealsRes.text();
-        try { mealsData = JSON.parse(text); } catch (e) {}
-      }
-    } catch (e) {}
-
-    return ordersData.map((order: any) => {
-      const customer = customersData.find(c => c.customer_id === order.customer_id);
-      if (customer) order.customer = customer;
-      
-      const meal = mealsData.find(m => m.meal_id === order.meal_id);
-      if (meal) order.meal_plan = meal;
-      
-      return mapOrderResponse(order);
-    });
+    return ordersData.map(mapOrderResponse);
   } catch (error) {
     console.error('Failed to fetch orders:', error);
     throw error;
@@ -103,33 +74,6 @@ export const updateOrderStatus = async (id: string, dto: UpdateOrderStatusDto): 
       throw new Error('Failed to update order status');
     }
     const result = await response.json();
-    
-    // Hydrate result with customer and meal info defensively
-    try {
-      const customersRes = await fetch(`${API_URL}/customer`, { method: 'GET', headers: getAuthHeaders() });
-      if (customersRes.ok) {
-        const text = await customersRes.text();
-        try {
-          const customers = JSON.parse(text);
-          const customer = customers.find((c: any) => c.customer_id === result.customer_id);
-          if (customer) result.customer = customer;
-        } catch (e) {}
-      }
-    } catch (e) {}
-
-    try {
-      const mealsRes = await fetch(`${API_URL}/meal-plan`, { method: 'GET', headers: getAuthHeaders() });
-      if (mealsRes.ok) {
-        const text = await mealsRes.text();
-        try {
-          const meals = JSON.parse(text);
-          const meal = meals.find((m: any) => m.meal_id === result.meal_id);
-          if (meal) result.meal_plan = meal;
-        } catch (e) {}
-      }
-    } catch (e) {}
-    
-    
     return mapOrderResponse(result);
   } catch (error) {
     console.error(`Failed to update order ${id} status:`, error);
