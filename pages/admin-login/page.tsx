@@ -14,7 +14,6 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
-import { Badge } from '@/components/Badge'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
 import { useUserStore } from '@/store/user-store'
@@ -48,11 +47,6 @@ export function AdminLogin() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const fillCredentials = () => {
-    setUsername('admin')
-    setPassword('Admin@7DM2024')
   }
 
   return (
@@ -146,6 +140,8 @@ export function AdminLogin() {
                 />
                 <button
                   type="button"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink"
                 >
@@ -165,19 +161,6 @@ export function AdminLogin() {
             </Button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-line">
-            <p className="text-xs text-center text-ink-soft mb-4 uppercase tracking-wider font-semibold">
-              Demo Admin Account
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              <button
-                onClick={fillCredentials}
-                className="hover:opacity-80 transition-opacity"
-              >
-                <Badge variant="info">System Administrator</Badge>
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

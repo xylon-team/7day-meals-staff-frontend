@@ -10,14 +10,8 @@ import {
   UserSquare2,
   Utensils,
   CalendarDays,
-  Tags,
-  Package,
   Truck,
   ClipboardList,
-  BadgeCheck,
-  Wallet,
-  BarChart3,
-  List,
   Settings,
   LogOut,
   Menu,
@@ -56,10 +50,7 @@ interface NavItem {
 
 interface NavSection {
   label: string
-  /**
-   * For Admin users we use the legacy role-name whitelist.
-   * For staff the section is shown if at least one of its items is visible.
-   */
+  /** If true, hide this entire section from staff even if they have item permissions. */
   adminOnly?: boolean
   /** If true, this section is always visible to every authenticated user. */
   alwaysVisible?: boolean
@@ -123,12 +114,6 @@ const navConfig: NavSection[] = [
         icon: CalendarDays,
         permissionCode: 'meal_package',
       },
-      {
-        name: 'Promotions',
-        path: '/promotions',
-        icon: Tags,
-        permissionCode: 'promotion',
-      },
     ],
   },
   {
@@ -149,42 +134,14 @@ const navConfig: NavSection[] = [
     ],
   },
   {
-    label: 'Inventory',
+    label: 'Suppliers',
     items: [
-      {
-        name: 'Inventory',
-        path: '/inventory',
-        icon: Package,
-        permissionCode: 'inventory_item',
-      },
       {
         name: 'Suppliers',
         path: '/suppliers',
         icon: Truck,
         permissionCode: 'supplier',
-      },
-      {
-        name: 'Supply Requests',
-        path: '/supply-requests',
-        icon: ClipboardList,
-        permissionCode: 'supply_request',
-      },
-    ],
-  },
-  {
-    label: 'Staff',
-    items: [
-      {
-        name: 'Staff Members',
-        path: '/staff',
-        icon: BadgeCheck,
-        permissionCode: 'staff',
-      },
-      {
-        name: 'Salary Management',
-        path: '/salary',
-        icon: Wallet,
-        permissionCode: 'staff',
+        permissionAction: 'view',
       },
     ],
   },
@@ -192,18 +149,6 @@ const navConfig: NavSection[] = [
     label: 'System',
     adminOnly: true,
     items: [
-      {
-        name: 'Reports',
-        path: '/reports',
-        icon: BarChart3,
-        permissionCode: 'analysis_report',
-      },
-      {
-        name: 'Logs',
-        path: '/logs',
-        icon: List,
-        permissionCode: 'logs',
-      },
       {
         name: 'Settings',
         path: '/settings',
@@ -376,9 +321,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
    * Decides whether a section should be shown:
    * - alwaysVisible sections → always shown
    * - Admin: all sections (since admins see everything)
-   * - Staff: only if at least one item in the section is visible
+   * - Staff: only if the section is not Admin-only and at least one item is visible
    */
   const isSectionVisible = (section: NavSection): boolean => {
+    if (section.adminOnly && !isAdmin) return false
     if (section.alwaysVisible) return true
     if (isAdmin) return true
     // For staff: the section is visible if at least one item passes the permission check
@@ -526,7 +472,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </div>
                 <div className="hidden sm:flex flex-col items-start">
                   <span className="text-sm font-medium leading-none">{user.name}</span>
-                  <span className="text-xs text-ink-soft">{user.role}</span>
+                  <span className="text-xs text-ink-soft">{user.displayRole || user.role}</span>
                 </div>
                 <ChevronDown size={16} className="text-ink-soft hidden sm:block" />
               </button>
@@ -535,7 +481,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <div className="absolute right-0 mt-2 w-48 bg-card rounded-card shadow-card border border-line py-1 z-50">
                   <div className="px-4 py-2 border-b border-line sm:hidden">
                     <p className="text-sm font-medium">{user.name}</p>
-                    <p className="text-xs text-ink-soft">{user.role}</p>
+                    <p className="text-xs text-ink-soft">{user.displayRole || user.role}</p>
                   </div>
                   <Link
                     href="/profile"
@@ -611,19 +557,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           >
             <Utensils size={20} />
             <span className="text-[10px] mt-1">Meals</span>
-          </Link>
-        )}
-
-        {checkPermission(permissions, user.role, 'inventory_item') && (
-          <Link
-            href="/inventory"
-            className={cn(
-              'flex flex-col items-center p-2',
-              isActive('/inventory') ? 'text-primary' : 'text-ink-soft'
-            )}
-          >
-            <Package size={20} />
-            <span className="text-[10px] mt-1">Stock</span>
           </Link>
         )}
 

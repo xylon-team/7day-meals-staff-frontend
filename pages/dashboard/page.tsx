@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { useUserStore } from '@/store/user-store'
 import { getAdminDashboardStats, getInventoryDashboardStats } from '@/lib/api/dashboard'
 import { AdminDashboardData, InventoryDashboardData, LowStockAlertItem } from '@/lib/types/dashboard'
@@ -10,9 +9,6 @@ import {
   UserSquare2,
   ShoppingBag,
   DollarSign,
-  Utensils,
-  CalendarDays,
-  Tags,
   TrendingUp,
   Package,
   AlertTriangle,
@@ -24,7 +20,6 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/Card'
-import { Badge } from '@/components/Badge'
 import { Button } from '@/components/Button'
 import {
   LineChart,
@@ -97,7 +92,6 @@ function hasPermission(
 }
 
 export function Dashboard() {
-  const router = useRouter()
   const { user } = useUserStore()
 
   // ---------------------------------------------------------------------------
@@ -107,7 +101,6 @@ export function Dashboard() {
   const [adminStats, setAdminStats] = useState<AdminDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [actionNotice, setActionNotice] = useState<string | null>(null)
 
   // ---------------------------------------------------------------------------
   // Pure Permission Evaluations (Safe with || — does NOT call React hooks)
@@ -131,11 +124,6 @@ export function Dashboard() {
     hasPermission(user, 'supply_request') ||
     hasPermission(user, 'restock', 'view') ||
     hasPermission(user, 'restock')
-
-  const canCreateSupplyRequest =
-    hasPermission(user, 'supply_request', 'add') ||
-    hasPermission(user, 'restock', 'add') ||
-    hasPermission(user, 'inventory_item', 'add')
 
   const canViewOrders =
     hasPermission(user, 'orders', 'view') || hasPermission(user, 'orders')
@@ -232,13 +220,6 @@ export function Dashboard() {
       setLoading(false)
     }
   }, [user, isLoadingPermissions, hasAnyPermission, fetchDashboardData])
-
-  const handleCreateRequest = (itemName: string) => {
-    setActionNotice(`Supply request drafted for ${itemName}! Navigating to supply requests...`)
-    setTimeout(() => {
-      router.push('/supply-requests')
-    }, 1200)
-  }
 
   if (!user) return null
 
@@ -346,13 +327,6 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {actionNotice && (
-        <div className="p-4 bg-primary/10 border border-primary/30 rounded-card flex items-center gap-3 text-primary text-sm font-medium animate-fadeIn">
-          <CheckCircle2 size={18} />
-          {actionNotice}
-        </div>
-      )}
-
       {/* ===================================================================== */}
       {/* 1. TOP STAT CARDS (Rendered dynamically based on permissions)           */}
       {/* ===================================================================== */}
@@ -588,15 +562,6 @@ export function Dashboard() {
                       <p className="text-xs text-ink-soft">
                         Reorder level: {alertItem.reorderLevel} • {alertItem.supplier}
                       </p>
-                      {canCreateSupplyRequest && (
-                        <Button
-                          size="sm"
-                          className="w-full bg-[#0D7377] hover:bg-[#0A5C5F] text-white font-semibold shadow-sm transition-colors py-2"
-                          onClick={() => handleCreateRequest(alertItem.name)}
-                        >
-                          Create Request
-                        </Button>
-                      )}
                     </div>
                   ))}
                 </div>

@@ -6,8 +6,8 @@ import { useUserStore } from '@/store/user-store'
 import { Input } from '@/components/Input'
 import { Button } from '@/components/Button'
 import { Badge } from '@/components/Badge'
-import { getStaff, getStaffById, updateStaff } from '@/lib/api/staff'
-import { staffLogin } from '@/lib/api/login'
+import { getStaff, getStaffById, updateStaff, changeOwnStaffPassword } from '@/lib/api/staff'
+import { withTimeout } from '@/lib/utils/with-timeout'
 
 interface ProfileData {
   firstName: string
@@ -58,72 +58,80 @@ export function Profile() {
 
   useEffect(() => {
     if (!user) return
-    if (user.id) {
-      setStaffId(user.id)
+    let isCurrent = true
+
+    const getFallbackProfile = (): ProfileData => {
+      const nameParts = user.name.split(' ')
+      return {
+        firstName: nameParts[0] || '',
+        lastName: nameParts.slice(1).join(' ') || '',
+        email: user.username,
+        phone: user.phone || '',
+      }
     }
 
     const loadProfile = async () => {
       try {
-        let currentStaff = null
-        if (user.id) {
-          try {
-            currentStaff = await getStaffById(user.id)
-          } catch (e) {
-            console.warn('Failed to load profile by ID, trying email fallback', e)
+        const profileRequest = (async (): Promise<{ id: number | string; data: ProfileData } | null> => {
+          let currentStaff = null
+          if (user.id) {
+            try {
+              currentStaff = await getStaffById(user.id)
+            } catch (e) {
+              console.warn('Failed to load profile by ID, trying email fallback', e)
+            }
           }
-        }
-        
-        if (!currentStaff) {
-          try {
-            const staffList = await getStaff()
-            currentStaff = staffList.find(
-              (s) => s.id === Number(user.id) || s.email?.toLowerCase() === user.username.toLowerCase()
-            )
-          } catch (e) {
-            console.warn('Failed to load staff list fallback', e)
-          }
-        }
 
-        if (currentStaff) {
-          setStaffId(currentStaff.id)
-          const data = {
-            firstName: currentStaff.fname,
-            lastName: currentStaff.lname,
-            email: currentStaff.email || user.username,
-            phone: currentStaff.phone_number || '',
+          if (!currentStaff) {
+            try {
+              const staffList = await getStaff()
+              currentStaff = staffList.find(
+                (s) => s.id === Number(user.id) || s.email?.toLowerCase() === user.username.toLowerCase()
+              )
+            } catch (e) {
+              console.warn('Failed to load staff list fallback', e)
+            }
           }
-          setFormData(data)
-          setOriginalData(data)
-        } else {
-          // Fallback to splitting user.name if not found in API list
-          const nameParts = user.name.split(' ')
-          const data = {
-            firstName: nameParts[0] || '',
-            lastName: nameParts.slice(1).join(' ') || '',
-            email: user.username,
-            phone: user.phone || '',
+
+          return currentStaff ? {
+            id: currentStaff.id,
+            data: {
+              firstName: currentStaff.fname,
+              lastName: currentStaff.lname,
+              email: currentStaff.email || user.username,
+              phone: currentStaff.phone_number || '',
+            },
+          } : null
+        })()
+
+        const profile = await withTimeout(profileRequest, 5000, 'Profile request timed out')
+        if (isCurrent) {
+          if (profile) {
+            setStaffId(profile.id)
+            setFormData(profile.data)
+            setOriginalData(profile.data)
+          } else {
+            const fallbackData = getFallbackProfile()
+            setFormData(fallbackData)
+            setOriginalData(fallbackData)
           }
-          setFormData(data)
-          setOriginalData(data)
         }
       } catch (error) {
         console.warn('Failed to fetch profile details, using user store fallbacks:', error)
-        // Load fallback from user store state
-        const nameParts = user.name.split(' ')
-        const data = {
-          firstName: nameParts[0] || '',
-          lastName: nameParts.slice(1).join(' ') || '',
-          email: user.username,
-          phone: user.phone || '',
+        if (isCurrent) {
+          const fallbackData = getFallbackProfile()
+          setFormData(fallbackData)
+          setOriginalData(fallbackData)
         }
-        setFormData(data)
-        setOriginalData(data)
       } finally {
-        setIsLoading(false)
+        if (isCurrent) setIsLoading(false)
       }
     }
 
     loadProfile()
+    return () => {
+      isCurrent = false
+    }
   }, [user])
 
   if (!user) {
@@ -215,25 +223,7 @@ export function Profile() {
     }
 
     try {
-      // Verify current password by performing a background login attempt
-      try {
-        await staffLogin({
-          email: user.username,
-          staff_password: passwordData.currentPassword,
-        })
-      } catch (e) {
-        setErrors({ currentPassword: 'Current password is incorrect' })
-        return
-      }
-
-      const activeId = staffId || user?.id
-      if (activeId) {
-        await updateStaff(activeId, {
-          staff_password: passwordData.newPassword,
-        })
-      } else {
-        throw new Error('User ID is missing. Cannot update password on backend.')
-      }
+      await changeOwnStaffPassword(passwordData.currentPassword, passwordData.newPassword)
       
       setPasswordData({
         currentPassword: '',
@@ -260,7 +250,9 @@ export function Profile() {
       <div>
         <h1 className="text-2xl font-bold text-ink">My Profile</h1>
         <p className="text-ink-soft mt-1">
-          Manage your personal information and password
+          {user.role === 'Admin'
+            ? 'Administrator account details are read-only.'
+            : 'Manage your personal information and password'}
         </p>
       </div>
 
@@ -280,7 +272,7 @@ export function Profile() {
               </div>
             </div>
           </div>
-          {!isEditing && (
+          {!isEditing && user.role !== 'Admin' && (
             <Button onClick={handleEdit} variant="primary">
               Edit Profile
             </Button>
@@ -375,6 +367,7 @@ export function Profile() {
         )}
       </div>
 
+      {user.role !== 'Admin' && (
       <div className="bg-card rounded-card p-6 border border-line shadow-card">
         <h3 className="text-lg font-semibold text-ink mb-4">
           Change Password
@@ -400,6 +393,8 @@ export function Profile() {
               />
               <button
                 type="button"
+                aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
+                aria-pressed={showCurrentPassword}
                 onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                 className="absolute right-3 top-3 text-ink-soft hover:text-ink"
               >
@@ -427,6 +422,8 @@ export function Profile() {
               />
               <button
                 type="button"
+                aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
+                aria-pressed={showNewPassword}
                 onClick={() => setShowNewPassword(!showNewPassword)}
                 className="absolute right-3 top-3 text-ink-soft hover:text-ink"
               >
@@ -454,6 +451,8 @@ export function Profile() {
               />
               <button
                 type="button"
+                aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
+                aria-pressed={showConfirmPassword}
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-3 top-3 text-ink-soft hover:text-ink"
               >
@@ -466,6 +465,7 @@ export function Profile() {
           </Button>
         </div>
       </div>
+      )}
     </div>
   )
 }

@@ -14,12 +14,11 @@ import {
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-import { Badge } from '@/components/Badge'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
 import { useUserStore } from '@/store/user-store'
 import { staffLogin } from '@/lib/api/login'
-import { getStaffPermissions } from '@/lib/api/staff'
+import { getMyStaffProfile, getStaffPermissions } from '@/lib/api/staff'
 
 const decodeJwt = (token: string) => {
   try {
@@ -38,14 +37,13 @@ const decodeJwt = (token: string) => {
   }
 }
 
-type Role = 'Catering Manager' | 'Inventory Manager'
-
 export function Login() {
   const router = useRouter()
-  const { login, setPermissions } = useUserStore()
+  const { login, logout, updateStaffIdentity, setPermissions } = useUserStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
@@ -63,25 +61,21 @@ export function Login() {
       const decoded = decodeJwt(data.access_token)
       const staffId = decoded?.sub
 
-      let staffName = 'Staff Member'
-      let staffRole = 'Staff'
+      // Keep the authorization role distinct from role labels on the staff record.
+      login(email, 'Staff', data.access_token, staffId, 'Staff Member', rememberMe)
 
-      if (email.toLowerCase().includes('catering')) {
-        staffName = 'Catering Manager'
-        staffRole = 'Catering Manager'
-      } else if (email.toLowerCase().includes('inventory')) {
-        staffName = 'Inventory Manager'
-        staffRole = 'Inventory Manager'
-      } else {
-        const namePart = email.split('@')[0]
-        staffName = namePart.charAt(0).toUpperCase() + namePart.slice(1)
+      try {
+        const profile = await getMyStaffProfile(data.access_token)
+        const displayName = [profile.fname, profile.lname].filter(Boolean).join(' ') || 'Staff Member'
+        updateStaffIdentity(displayName, profile.role || 'Staff', profile.email || email, profile.phone_number)
+      } catch (profileError) {
+        logout()
+        throw new Error(profileError instanceof Error
+          ? `Signed in, but failed to load your staff profile: ${profileError.message}`
+          : 'Signed in, but failed to load your staff profile.')
       }
 
-      // Store the user first so the token is persisted
-      login(email, staffRole, data.access_token, staffId, staffName)
-
-      // Then fetch and store their role-based permissions in the background.
-      // We don't block navigation on this — the Layout handles a loading state.
+      // Permissions load in the background; the layout handles their loading state.
       if (staffId) {
         getStaffPermissions(staffId)
           .then((perms) => setPermissions(perms))
@@ -89,20 +83,10 @@ export function Login() {
       }
 
       router.push('/dashboard')
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during authentication.')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred during authentication.')
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const fillCredentials = (role: Role) => {
-    if (role === 'Catering Manager') {
-      setEmail('catering@7daymeals.lk')
-      setPassword('Catering@7DM2024')
-    } else if (role === 'Inventory Manager') {
-      setEmail('inventory@7daymeals.lk')
-      setPassword('Inventory@7DM2024')
     }
   }
 
@@ -195,6 +179,8 @@ export function Login() {
                 />
                 <button
                   type="button"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink"
                 >
@@ -207,6 +193,8 @@ export function Login() {
               <input
                 id="remember"
                 type="checkbox"
+                checked={rememberMe}
+                onChange={(event) => setRememberMe(event.target.checked)}
                 className="h-4 w-4 rounded border-line text-primary focus:ring-primary"
               />
               <label
@@ -239,23 +227,9 @@ export function Login() {
           </form>
 
           <div className="mt-8 pt-6 border-t border-line">
-            <p className="text-xs text-center text-ink-soft mb-4 uppercase tracking-wider font-semibold">
-              Demo Accounts
+            <p className="text-sm text-center text-ink-soft">
+              Sign in with the staff credentials provided by your administrator.
             </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              <button
-                onClick={() => fillCredentials('Catering Manager')}
-                className="hover:opacity-80 transition-opacity"
-              >
-                <Badge variant="warning">Catering Manager</Badge>
-              </button>
-              <button
-                onClick={() => fillCredentials('Inventory Manager')}
-                className="hover:opacity-80 transition-opacity"
-              >
-                <Badge variant="success">Inventory Manager</Badge>
-              </button>
-            </div>
           </div>
         </div>
       </div>

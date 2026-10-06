@@ -8,18 +8,15 @@ import {
   Search,
   Plus,
   Edit2,
-  Trash2,
   Check,
   X,
   Loader2,
-  AlertTriangle,
 } from 'lucide-react'
 import {
   getSuppliers,
   toggleSupplierStatus,
   createSupplier,
   updateSupplier,
-  deleteSupplier,
 } from '@/lib/api/supplier'
 import { Supplier, CreateSupplierDto } from '@/lib/types/supplier'
 import { Card } from '@/components/Card'
@@ -32,8 +29,6 @@ export function SuppliersPage() {
   const router = useRouter()
   const canAdd = usePermission('supplier', 'add')
   const canChange = usePermission('supplier', 'change')
-  const canDelete = usePermission('supplier', 'delete')
-
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -43,10 +38,6 @@ export function SuppliersPage() {
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
-
-  // Delete confirmation modal state
-  const [deleteConfirm, setDeleteConfirm] = useState<Supplier | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -86,7 +77,7 @@ export function SuppliersPage() {
     )
 
     try {
-      const updated = await toggleSupplierStatus(supplier.id, newStatus)
+      const updated = await toggleSupplierStatus(supplier.id, newStatus, supplier)
       setSuppliers((prev) =>
         prev.map((s) => (s.id === updated.id ? updated : s))
       )
@@ -116,22 +107,6 @@ export function SuppliersPage() {
   const openEditModal = (supplier: Supplier) => {
     setEditingSupplier(supplier)
     setIsModalOpen(true)
-  }
-
-  const handleDeleteSupplier = async () => {
-    if (!deleteConfirm) return
-    setIsDeleting(true)
-    try {
-      await deleteSupplier(deleteConfirm.id)
-      setSuppliers((prev) => prev.filter((s) => s.id !== deleteConfirm.id))
-      showToast(`Supplier "${deleteConfirm.name}" deleted successfully!`)
-      setDeleteConfirm(null)
-    } catch (err) {
-      console.error('Failed to delete supplier:', err)
-      showToast('Failed to delete supplier')
-    } finally {
-      setIsDeleting(false)
-    }
   }
 
   // Extract all unique categories for the dropdown filter
@@ -282,10 +257,11 @@ export function SuppliersPage() {
 
                     {/* Status Toggle Switch */}
                     <td className="px-6 py-5 whitespace-nowrap">
-                      <button
+                      {canChange ? <button
                         type="button"
                         role="switch"
                         aria-checked={supplier.isActive}
+                        aria-label={`Active status for ${supplier.name}`}
                         onClick={() => canChange && handleToggleStatus(supplier)}
                         disabled={!canChange || actionLoadingId === supplier.id}
                         className={cn(
@@ -307,7 +283,7 @@ export function SuppliersPage() {
                             supplier.isActive ? 'translate-x-5' : 'translate-x-0'
                           )}
                         />
-                      </button>
+                      </button> : <span className="text-xs text-ink-soft">{supplier.isActive ? 'Active' : 'Inactive'}</span>}
                     </td>
 
                     {/* Actions */}
@@ -320,15 +296,6 @@ export function SuppliersPage() {
                             title="Edit Supplier"
                           >
                             <Edit2 size={16} />
-                          </button>
-                        )}
-                        {canDelete && (
-                          <button
-                            onClick={() => setDeleteConfirm(supplier)}
-                            className="text-ink-soft hover:text-danger-fg transition-colors cursor-pointer p-1"
-                            title="Delete Supplier"
-                          >
-                            <Trash2 size={16} />
                           </button>
                         )}
                       </div>
@@ -358,41 +325,6 @@ export function SuppliersPage() {
         }}
       />
 
-      {/* ==================== DELETE CONFIRMATION MODAL ==================== */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <Card className="w-full max-w-md p-6 bg-card border border-line shadow-xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3 text-danger-fg mb-4">
-              <AlertTriangle size={24} />
-              <h3 className="text-lg font-bold text-ink">Delete Supplier</h3>
-            </div>
-            <p className="text-sm text-ink-soft mb-6">
-              Are you sure you want to delete{' '}
-              <span className="font-semibold text-ink">
-                &ldquo;{deleteConfirm.name}&rdquo;
-              </span>
-              ? This action cannot be undone.
-            </p>
-            <div className="flex items-center justify-end gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setDeleteConfirm(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={handleDeleteSupplier}
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete'}
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
     </div>
   )
 }

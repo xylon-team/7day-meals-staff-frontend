@@ -25,6 +25,7 @@ import { Button } from '@/components/Button'
 import { Card, CardContent } from '@/components/Card'
 import { Input } from '@/components/Input'
 import { usePermission } from '@/lib/use-permission'
+import { isValidPersonName } from '@/lib/validation/person-name'
 
 export function Users() {
   const router = useRouter()
@@ -204,15 +205,15 @@ export function Users() {
     // First Name validation
     if (!userFirstName.trim()) {
       newErrors.firstName = 'First name is required'
-    } else if (!/^[A-Za-z]+$/.test(userFirstName.trim())) {
-      newErrors.firstName = 'First name must contain only letters'
+    } else if (!isValidPersonName(userFirstName)) {
+      newErrors.firstName = 'Enter a valid name using letters, spaces, apostrophes, or hyphens'
     }
 
     // Last Name validation
     if (!userLastName.trim()) {
       newErrors.lastName = 'Last name is required'
-    } else if (!/^[A-Za-z]+$/.test(userLastName.trim())) {
-      newErrors.lastName = 'Last name must contain only letters'
+    } else if (!isValidPersonName(userLastName)) {
+      newErrors.lastName = 'Enter a valid name using letters, spaces, apostrophes, or hyphens'
     }
 
     // Phone validation
@@ -542,6 +543,10 @@ export function Users() {
                           <button
                             onClick={() => canChangeStaff && toggleUserStatus(user.id, user.status, `${user.fname} ${user.lname}`)}
                             disabled={!canChangeStaff}
+                            type="button"
+                            role="switch"
+                            aria-checked={user.status === StaffStatus.ACTIVE}
+                            aria-label={`Active status for ${user.fname} ${user.lname}`}
                             className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 ${
                               canChangeStaff ? 'cursor-pointer' : 'cursor-not-allowed'
                             } ${

@@ -46,49 +46,6 @@ const mapOrderResponse = (backendOrder: any): Order => {
   };
 };
 
-const mockOrders: Order[] = [
-  {
-    id: 'ORD-1042',
-    customer: 'Saman Kumara',
-    mealPlan: 'Executive Lunch Pack',
-    total: 5500,
-    deliveryPreferredDate: 'Oct 24, 2023',
-    date: 'Today',
-    orderTimestamp: new Date().toISOString(),
-    status: 'PENDING',
-  },
-  {
-    id: 'ORD-1041',
-    customer: 'Nishanthi Silva',
-    mealPlan: 'Full Week Complete',
-    total: 21000,
-    deliveryPreferredDate: 'Oct 25, 2023',
-    date: 'Yesterday',
-    orderTimestamp: new Date(Date.now() - 86400000).toISOString(),
-    status: 'PENDING',
-  },
-  {
-    id: 'ORD-1040',
-    customer: 'Arjun Perera',
-    mealPlan: 'Healthy Breakfast Bowl',
-    total: 3200,
-    deliveryPreferredDate: 'Oct 24, 2023',
-    date: 'Yesterday',
-    orderTimestamp: new Date(Date.now() - 86400000 - 3600000).toISOString(),
-    status: 'PENDING',
-  },
-  {
-    id: 'ORD-1039',
-    customer: 'Lakmini Fernando',
-    mealPlan: 'Standard Office Pack',
-    total: 12450,
-    deliveryPreferredDate: 'Oct 26, 2023',
-    date: 'Oct 22, 2023',
-    orderTimestamp: new Date('2023-10-22T10:00:00Z').toISOString(),
-    status: 'PENDING',
-  },
-];
-
 export const getOrders = async (): Promise<Order[]> => {
   const url = new URL(`${API_URL}/order`);
   try {
@@ -130,8 +87,8 @@ export const getOrders = async (): Promise<Order[]> => {
       return mapOrderResponse(order);
     });
   } catch (error) {
-    console.warn('Backend unavailable, returning mock orders data', error);
-    return [...mockOrders];
+    console.error('Failed to fetch orders:', error);
+    throw error;
   }
 };
 

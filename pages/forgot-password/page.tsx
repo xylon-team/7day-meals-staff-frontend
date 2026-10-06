@@ -136,7 +136,7 @@ export function ForgotPassword() {
                 Forgot Password?
               </h2>
               <p className="text-ink-soft mb-8 text-center lg:text-left">
-                Enter your staff email and we'll send you a reset link.
+                Enter your staff email. If an account exists, we’ll send a password reset OTP.
               </p>
 
               <form onSubmit={handleSendOTP} className="space-y-6">
@@ -183,7 +183,7 @@ export function ForgotPassword() {
                   Check your inbox
                 </h2>
                 <p className="text-ink-soft text-center px-4">
-                  We've sent a password reset OTP to
+                  If a staff account exists for this email, a password reset OTP will be sent to
                   <br />
                   <span className="font-semibold text-ink">{email || '{entered email}'}</span>
                   <br />
@@ -247,6 +247,8 @@ export function ForgotPassword() {
                     />
                     <button
                       type="button"
+                      aria-label={showPassword ? 'Hide new password' : 'Show new password'}
+                      aria-pressed={showPassword}
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink"
                     >
@@ -269,6 +271,8 @@ export function ForgotPassword() {
                     />
                     <button
                       type="button"
+                      aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
+                      aria-pressed={showConfirmPassword}
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink"
                     >
