@@ -489,7 +489,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   >
                     <UserIcon size={16} /> My Profile
                   </Link>
-                  {(isAdmin || checkPermission(permissions, user.role, 'system_settings')) && (
+                  {isAdmin && (
                     <Link
                       href="/settings"
                       className="block w-full text-left px-4 py-2 text-sm text-ink hover:bg-canvas flex items-center gap-2"
