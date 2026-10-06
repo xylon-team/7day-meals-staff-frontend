@@ -42,7 +42,7 @@ const mapCustomerResponse = (item: any): Customer => {
     ? item.orders.length
     : typeof item.totalOrders === 'number'
     ? item.totalOrders
-    : item.orders_count ?? 0;
+    : item.orders_count ?? item._count?.orders ?? 0;
 
   const isActive =
     item.is_active !== undefined
