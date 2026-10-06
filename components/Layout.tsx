@@ -10,14 +10,8 @@ import {
   UserSquare2,
   Utensils,
   CalendarDays,
-  Tags,
-  Package,
   Truck,
   ClipboardList,
-  BadgeCheck,
-  Wallet,
-  BarChart3,
-  List,
   Settings,
   LogOut,
   Menu,
@@ -119,12 +113,6 @@ const navConfig: NavSection[] = [
         icon: CalendarDays,
         permissionCode: 'meal_package',
       },
-      {
-        name: 'Promotions',
-        path: '/promotions',
-        icon: Tags,
-        permissionCode: 'promotion',
-      },
     ],
   },
   {
@@ -145,14 +133,8 @@ const navConfig: NavSection[] = [
     ],
   },
   {
-    label: 'Inventory',
+    label: 'Suppliers',
     items: [
-      {
-        name: 'Inventory',
-        path: '/inventory',
-        icon: Package,
-        permissionCode: 'inventory_item',
-      },
       {
         name: 'Suppliers',
         path: '/suppliers',
@@ -160,47 +142,12 @@ const navConfig: NavSection[] = [
         permissionCode: 'supplier',
         permissionAction: 'view',
       },
-      {
-        name: 'Supply Requests',
-        path: '/supply-requests',
-        icon: ClipboardList,
-        permissionCode: 'supply_request',
-      },
-    ],
-  },
-  {
-    label: 'Staff',
-    items: [
-      {
-        name: 'Staff Members',
-        path: '/staff',
-        icon: BadgeCheck,
-        permissionCode: 'staff',
-      },
-      {
-        name: 'Salary Management',
-        path: '/salary',
-        icon: Wallet,
-        permissionCode: 'staff',
-      },
     ],
   },
   {
     label: 'System',
     adminOnly: true,
     items: [
-      {
-        name: 'Reports',
-        path: '/reports',
-        icon: BarChart3,
-        permissionCode: 'analysis_report',
-      },
-      {
-        name: 'Logs',
-        path: '/logs',
-        icon: List,
-        permissionCode: 'logs',
-      },
       {
         name: 'Settings',
         path: '/settings',
@@ -521,19 +468,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           >
             <Utensils size={20} />
             <span className="text-[10px] mt-1">Meals</span>
-          </Link>
-        )}
-
-        {checkPermission(permissions, user.role, 'inventory_item') && (
-          <Link
-            href="/inventory"
-            className={cn(
-              'flex flex-col items-center p-2',
-              isActive('/inventory') ? 'text-primary' : 'text-ink-soft'
-            )}
-          >
-            <Package size={20} />
-            <span className="text-[10px] mt-1">Stock</span>
           </Link>
         )}
 
