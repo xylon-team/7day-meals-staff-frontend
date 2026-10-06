@@ -72,8 +72,8 @@ export function Permissions() {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        await fetchRoles()
-        const allPerms = (await getAllPermissions()) as DbPermission[]
+        const [, permissionsData] = await Promise.all([fetchRoles(), getAllPermissions()])
+        const allPerms = permissionsData as DbPermission[]
         const permsMap: Record<string, number> = {}
         allPerms.forEach((p) => {
           if (p.permission_type) {
@@ -124,9 +124,8 @@ export function Permissions() {
   const retryLoad = () => {
     setLoadError(null)
     setIsLoading(true)
-    void fetchRoles()
-      .then(() => getAllPermissions())
-      .then((allPerms) => {
+    void Promise.all([fetchRoles(), getAllPermissions()])
+      .then(([, allPerms]) => {
         const permissions = allPerms as DbPermission[]
         const permsMap: Record<string, number> = {}
         const moduleMap: Record<string, ('add' | 'change' | 'delete' | 'view')[]> = {}
@@ -422,7 +421,7 @@ export function Permissions() {
               Editing permissions for: <strong className="font-semibold text-ink">{selectedRole}</strong>
             </span>
             <span className="text-sm font-semibold text-primary">
-              {checkedCount} of {displayTotal} permissions assigned
+              {isLoading ? 'Loading permissions…' : `${checkedCount} of ${displayTotal} permissions assigned`}
             </span>
           </div>
         </CardContent>
@@ -448,7 +447,11 @@ export function Permissions() {
               </tr>
             </thead>
             <tbody className="divide-y divide-line bg-card">
-              {groupedModules.map((module, mIdx) => (
+              {isLoading ? (
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-ink-soft">Loading permissions…</td></tr>
+              ) : loadError ? (
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-ink-soft">Permissions could not be loaded.</td></tr>
+              ) : groupedModules.map((module, mIdx) => (
                 <React.Fragment key={module.id}>
                   {module.rows.map((row) => {
                     const isParent = row.isParent
@@ -593,7 +596,7 @@ export function Permissions() {
           <span className="text-sm text-ink-soft">
             Total:{' '}
             <strong className="font-semibold text-ink">
-              {checkedCount} permissions
+              {isLoading ? 'Loading…' : `${checkedCount} permissions`}
             </strong>{' '}
             assigned to{' '}
             <strong className="font-semibold text-ink">{selectedRole}</strong>
@@ -603,7 +606,7 @@ export function Permissions() {
               <Button variant="ghost" size="md" onClick={handleCancel} className="cursor-pointer">
                 Cancel
               </Button>
-              <Button variant="primary" size="md" onClick={handleSave} className="flex items-center gap-2 shadow-sm cursor-pointer">
+              <Button variant="primary" size="md" onClick={handleSave} disabled={isLoading || !!loadError || apiRolesList.length === 0} className="flex items-center gap-2 shadow-sm cursor-pointer">
                 <Save size={16} /> Save Changes
               </Button>
             </div>
