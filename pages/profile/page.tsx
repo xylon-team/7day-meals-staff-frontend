@@ -7,6 +7,7 @@ import { Input } from '@/components/Input'
 import { Button } from '@/components/Button'
 import { Badge } from '@/components/Badge'
 import { getStaff, getStaffById, updateStaff, changeOwnStaffPassword } from '@/lib/api/staff'
+import { withTimeout } from '@/lib/utils/with-timeout'
 
 interface ProfileData {
   firstName: string
@@ -57,72 +58,80 @@ export function Profile() {
 
   useEffect(() => {
     if (!user) return
-    if (user.id) {
-      setStaffId(user.id)
+    let isCurrent = true
+
+    const getFallbackProfile = (): ProfileData => {
+      const nameParts = user.name.split(' ')
+      return {
+        firstName: nameParts[0] || '',
+        lastName: nameParts.slice(1).join(' ') || '',
+        email: user.username,
+        phone: user.phone || '',
+      }
     }
 
     const loadProfile = async () => {
       try {
-        let currentStaff = null
-        if (user.id) {
-          try {
-            currentStaff = await getStaffById(user.id)
-          } catch (e) {
-            console.warn('Failed to load profile by ID, trying email fallback', e)
+        const profileRequest = (async (): Promise<{ id: number | string; data: ProfileData } | null> => {
+          let currentStaff = null
+          if (user.id) {
+            try {
+              currentStaff = await getStaffById(user.id)
+            } catch (e) {
+              console.warn('Failed to load profile by ID, trying email fallback', e)
+            }
           }
-        }
-        
-        if (!currentStaff) {
-          try {
-            const staffList = await getStaff()
-            currentStaff = staffList.find(
-              (s) => s.id === Number(user.id) || s.email?.toLowerCase() === user.username.toLowerCase()
-            )
-          } catch (e) {
-            console.warn('Failed to load staff list fallback', e)
-          }
-        }
 
-        if (currentStaff) {
-          setStaffId(currentStaff.id)
-          const data = {
-            firstName: currentStaff.fname,
-            lastName: currentStaff.lname,
-            email: currentStaff.email || user.username,
-            phone: currentStaff.phone_number || '',
+          if (!currentStaff) {
+            try {
+              const staffList = await getStaff()
+              currentStaff = staffList.find(
+                (s) => s.id === Number(user.id) || s.email?.toLowerCase() === user.username.toLowerCase()
+              )
+            } catch (e) {
+              console.warn('Failed to load staff list fallback', e)
+            }
           }
-          setFormData(data)
-          setOriginalData(data)
-        } else {
-          // Fallback to splitting user.name if not found in API list
-          const nameParts = user.name.split(' ')
-          const data = {
-            firstName: nameParts[0] || '',
-            lastName: nameParts.slice(1).join(' ') || '',
-            email: user.username,
-            phone: user.phone || '',
+
+          return currentStaff ? {
+            id: currentStaff.id,
+            data: {
+              firstName: currentStaff.fname,
+              lastName: currentStaff.lname,
+              email: currentStaff.email || user.username,
+              phone: currentStaff.phone_number || '',
+            },
+          } : null
+        })()
+
+        const profile = await withTimeout(profileRequest, 5000, 'Profile request timed out')
+        if (isCurrent) {
+          if (profile) {
+            setStaffId(profile.id)
+            setFormData(profile.data)
+            setOriginalData(profile.data)
+          } else {
+            const fallbackData = getFallbackProfile()
+            setFormData(fallbackData)
+            setOriginalData(fallbackData)
           }
-          setFormData(data)
-          setOriginalData(data)
         }
       } catch (error) {
         console.warn('Failed to fetch profile details, using user store fallbacks:', error)
-        // Load fallback from user store state
-        const nameParts = user.name.split(' ')
-        const data = {
-          firstName: nameParts[0] || '',
-          lastName: nameParts.slice(1).join(' ') || '',
-          email: user.username,
-          phone: user.phone || '',
+        if (isCurrent) {
+          const fallbackData = getFallbackProfile()
+          setFormData(fallbackData)
+          setOriginalData(fallbackData)
         }
-        setFormData(data)
-        setOriginalData(data)
       } finally {
-        setIsLoading(false)
+        if (isCurrent) setIsLoading(false)
       }
     }
 
     loadProfile()
+    return () => {
+      isCurrent = false
+    }
   }, [user])
 
   if (!user) {
