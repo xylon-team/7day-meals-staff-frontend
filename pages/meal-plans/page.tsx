@@ -8,7 +8,7 @@ import { Badge } from '@/components/Badge'
 import {
   Plus, Edit2, Trash2, CalendarDays, Loader2, Check, ChevronDown, UtensilsCrossed,
 } from 'lucide-react'
-import { getMealPlans, updateMealPlan, deleteMealPlan, deactivateMealPlan } from '@/lib/api/meal-plans'
+import { getMealPlans, createMealPlan, updateMealPlan, deleteMealPlan, deactivateMealPlan } from '@/lib/api/meal-plans'
 import { MealPlan, MealPlanFoodItem } from '@/lib/types/meal-plans'
 import { getMeals } from '@/lib/api/meals'
 import { Meal } from '@/lib/types/meals'
@@ -131,11 +131,13 @@ export function MealPlans() {
   // Edit state
   const [editingPlan, setEditingPlan] = useState<MealPlan | null>(null)
   const [editName, setEditName] = useState('')
+  const [createCategory, setCreateCategory] = useState('')
   const [editDietaryPreference, setEditDietaryPreference] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editIsAvailable, setEditIsAvailable] = useState(true)
   const [editSelectedMeals, setEditSelectedMeals] = useState<Record<string, Record<string, number>>>({})
   const [isUpdating, setIsUpdating] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
@@ -198,6 +200,18 @@ export function MealPlans() {
     setEditSelectedMeals(initialSelected)
   }
 
+  const handleStartCreate = () => {
+    setEditName('')
+    setCreateCategory('')
+    setEditDietaryPreference('')
+    setEditDescription('')
+    setEditIsAvailable(true)
+    setEditSelectedMeals(Object.fromEntries(
+      DAYS.map(day => [day, { Breakfast: 0, Lunch: 0, Dinner: 0 }]),
+    ))
+    setIsCreating(true)
+  }
+
   const handleMealSelectChange = (day: string, mealType: string, val: string) => {
     const mealId = val ? Number(val) : 0
     setEditSelectedMeals(prev => ({ ...prev, [day]: { ...prev[day], [mealType]: mealId } }))
@@ -247,6 +261,44 @@ export function MealPlans() {
       showToast('Failed to update meal plan')
     } finally {
       setIsUpdating(false)
+    }
+  }
+
+  const handleCreatePlan = async () => {
+    if (!editName.trim()) { showToast('Plan name is required'); return }
+    if (!createCategory.trim()) { showToast('Category is required'); return }
+    if (!editDescription.trim()) { showToast('Description is required'); return }
+    if (!editDietaryPreference) { showToast('Dietary preference is required'); return }
+
+    const foodItemsPayload = Object.entries(editSelectedMeals).flatMap(([day, dayMeals]) =>
+      Object.entries(dayMeals)
+        .filter(([, mealId]) => mealId > 0)
+        .map(([mealType, food_item_id]) => ({ food_item_id, day, meal_type: mealType })),
+    )
+    if (foodItemsPayload.length === 0) {
+      showToast('Select at least one meal for the plan')
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      await createMealPlan({
+        name: editName.trim(),
+        category: createCategory.trim(),
+        description: editDescription.trim(),
+        dietary_preference: editDietaryPreference,
+        price: calculatedPrice,
+        is_available: editIsAvailable,
+        food_items: foodItemsPayload,
+      })
+      setMealPlans(await getMealPlans())
+      setIsCreating(false)
+      showToast('Meal plan created successfully!')
+    } catch (error) {
+      console.error('Failed to create meal plan:', error)
+      showToast('Failed to create meal plan')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -308,7 +360,9 @@ export function MealPlans() {
           <h2 className="text-2xl font-bold text-ink">Create Meal Plan</h2>
           <div className="space-x-3">
             <Button variant="ghost" onClick={() => setIsCreating(false)}>Cancel</Button>
-            <Button onClick={() => setIsCreating(false)}>Save Plan</Button>
+            <Button onClick={handleCreatePlan} disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save Plan'}
+            </Button>
           </div>
         </div>
 
@@ -317,32 +371,54 @@ export function MealPlans() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-ink mb-1.5">Plan Name</label>
-                <Input placeholder="e.g. Standard Office Week" />
+                <Input value={editName} onChange={e => setEditName(e.target.value)} placeholder="e.g. Standard Office Week" />
               </div>
               <div>
+                <label className="block text-sm font-medium text-ink mb-1.5">Category</label>
+                <Input value={createCategory} onChange={e => setCreateCategory(e.target.value)} placeholder="e.g. Weekly" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-ink mb-1.5">Dietary Preferences</label>
+                <select
+                  value={editDietaryPreference}
+                  onChange={e => setEditDietaryPreference(e.target.value)}
+                  className="w-full h-10 px-3 rounded-control border border-line bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="">Select dietary preference...</option>
+                  <option value="Vegetarian">Vegetarian</option>
+                  <option value="Vegan">Vegan</option>
+                  <option value="Gluten-Free">Gluten-Free</option>
+                  <option value="Dairy-Free">Dairy-Free</option>
+                  <option value="Halal">Halal</option>
+                </select>
+              </div>
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-ink mb-1.5">Description</label>
-                <Input placeholder="Brief description of the plan" />
+                <Input value={editDescription} onChange={e => setEditDescription(e.target.value)} placeholder="Brief description of the plan" />
               </div>
             </div>
 
             <div className="border-t border-line pt-6">
               <h3 className="font-semibold mb-4">Daily Configuration</h3>
               <div className="space-y-4">
-                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map(day => (
+                {DAYS.map(day => (
                   <div
                     key={day}
                     className="flex flex-col sm:flex-row gap-4 items-start sm:items-center p-4 bg-canvas rounded-card border border-line"
                   >
                     <div className="w-24 font-medium">{day}</div>
                     <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-                      <select className="w-full h-10 px-3 rounded-control border border-line bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                      <select aria-label={`${day} Breakfast`} value={editSelectedMeals[day]?.Breakfast || ''} onChange={e => handleMealSelectChange(day, 'Breakfast', e.target.value)} className="w-full h-10 px-3 rounded-control border border-line bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                         <option value="">Select Breakfast...</option>
+                        {meals.map(meal => <option key={meal.id} value={meal.id}>{meal.name}</option>)}
                       </select>
-                      <select className="w-full h-10 px-3 rounded-control border border-line bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                      <select aria-label={`${day} Lunch`} value={editSelectedMeals[day]?.Lunch || ''} onChange={e => handleMealSelectChange(day, 'Lunch', e.target.value)} className="w-full h-10 px-3 rounded-control border border-line bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                         <option value="">Select Lunch...</option>
+                        {meals.map(meal => <option key={meal.id} value={meal.id}>{meal.name}</option>)}
                       </select>
-                      <select className="w-full h-10 px-3 rounded-control border border-line bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                      <select aria-label={`${day} Dinner`} value={editSelectedMeals[day]?.Dinner || ''} onChange={e => handleMealSelectChange(day, 'Dinner', e.target.value)} className="w-full h-10 px-3 rounded-control border border-line bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                         <option value="">Select Dinner...</option>
+                        {meals.map(meal => <option key={meal.id} value={meal.id}>{meal.name}</option>)}
                       </select>
                     </div>
                   </div>
@@ -352,12 +428,12 @@ export function MealPlans() {
 
             <div className="border-t border-line pt-6 flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <input type="checkbox" id="active" defaultChecked className="w-4 h-4 text-primary border-line rounded focus:ring-primary" />
+                <input type="checkbox" id="active" checked={editIsAvailable} onChange={e => setEditIsAvailable(e.target.checked)} className="w-4 h-4 text-primary border-line rounded focus:ring-primary" />
                 <label htmlFor="active" className="text-sm font-medium">Enable Plan</label>
               </div>
               <div className="text-right">
                 <p className="text-sm text-ink-soft mb-1">Calculated Total Price</p>
-                <p className="text-2xl font-bold text-primary">Rs. 0.00</p>
+                <p className="text-2xl font-bold text-primary">Rs. {calculatedPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
               </div>
             </div>
           </CardContent>
@@ -495,7 +571,7 @@ export function MealPlans() {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-ink">Meal Plans</h2>
         {canAdd && (
-          <Button onClick={() => setIsCreating(true)}>
+          <Button onClick={handleStartCreate}>
             <Plus size={18} className="mr-2" /> Create Plan
           </Button>
         )}
