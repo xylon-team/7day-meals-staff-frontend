@@ -234,15 +234,18 @@ export function MealPlans() {
     if (!editingPlan) return
     if (!editName.trim()) { showToast('Plan name is required'); return }
 
+    const foodItemsPayload = Object.entries(editSelectedMeals).flatMap(([day, dayMeals]) =>
+      Object.entries(dayMeals)
+        .filter(([, mealId]) => mealId > 0)
+        .map(([mealType, food_item_id]) => ({ food_item_id, day, meal_type: mealType })),
+    )
+    if (foodItemsPayload.length === 0) {
+      showToast('Select at least one meal for the plan')
+      return
+    }
+
     setIsUpdating(true)
     try {
-      const foodItemsPayload: { food_item_id: number; day: string; meal_type: string }[] = []
-      Object.entries(editSelectedMeals).forEach(([day, dayMeals]) => {
-        Object.entries(dayMeals).forEach(([mealType, mealId]) => {
-          if (mealId > 0) foodItemsPayload.push({ food_item_id: mealId, day, meal_type: mealType })
-        })
-      })
-
       await updateMealPlan(editingPlan.id, {
         name: editName.trim(),
         description: editDescription.trim(),
