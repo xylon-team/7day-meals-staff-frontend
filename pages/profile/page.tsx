@@ -250,7 +250,9 @@ export function Profile() {
       <div>
         <h1 className="text-2xl font-bold text-ink">My Profile</h1>
         <p className="text-ink-soft mt-1">
-          Manage your personal information and password
+          {user.role === 'Admin'
+            ? 'Administrator account details are read-only.'
+            : 'Manage your personal information and password'}
         </p>
       </div>
 
@@ -270,7 +272,7 @@ export function Profile() {
               </div>
             </div>
           </div>
-          {!isEditing && (
+          {!isEditing && user.role !== 'Admin' && (
             <Button onClick={handleEdit} variant="primary">
               Edit Profile
             </Button>
@@ -365,6 +367,7 @@ export function Profile() {
         )}
       </div>
 
+      {user.role !== 'Admin' && (
       <div className="bg-card rounded-card p-6 border border-line shadow-card">
         <h3 className="text-lg font-semibold text-ink mb-4">
           Change Password
@@ -456,6 +459,7 @@ export function Profile() {
           </Button>
         </div>
       </div>
+      )}
     </div>
   )
 }
