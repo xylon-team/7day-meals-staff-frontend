@@ -70,6 +70,16 @@ export function Profile() {
       }
     }
 
+    if (user.role === 'Admin') {
+      const fallbackData = getFallbackProfile()
+      setFormData(fallbackData)
+      setOriginalData(fallbackData)
+      setIsLoading(false)
+      return () => {
+        isCurrent = false
+      }
+    }
+
     const loadProfile = async () => {
       try {
         const profileRequest = (async (): Promise<{ id: number | string; data: ProfileData } | null> => {
