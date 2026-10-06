@@ -286,6 +286,7 @@ export function SuppliersPage() {
                         type="button"
                         role="switch"
                         aria-checked={supplier.isActive}
+                        aria-label={`Active status for ${supplier.name}`}
                         onClick={() => handleToggleStatus(supplier)}
                         disabled={actionLoadingId === supplier.id}
                         className={cn(

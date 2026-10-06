@@ -588,6 +588,10 @@ export function MealPlans() {
                           <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
                             <div className="flex items-center">
                               <button
+                                type="button"
+                                role="switch"
+                                aria-checked={p.is_available}
+                                aria-label={`Availability for ${p.name}`}
                                 disabled={!canChange}
                                 onClick={() => handleToggleAvailability(p.id, p.is_available, p.name)}
                                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${

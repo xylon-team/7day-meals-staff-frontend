@@ -393,6 +393,8 @@ export function Profile() {
               />
               <button
                 type="button"
+                aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
+                aria-pressed={showCurrentPassword}
                 onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                 className="absolute right-3 top-3 text-ink-soft hover:text-ink"
               >
@@ -420,6 +422,8 @@ export function Profile() {
               />
               <button
                 type="button"
+                aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
+                aria-pressed={showNewPassword}
                 onClick={() => setShowNewPassword(!showNewPassword)}
                 className="absolute right-3 top-3 text-ink-soft hover:text-ink"
               >
@@ -447,6 +451,8 @@ export function Profile() {
               />
               <button
                 type="button"
+                aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
+                aria-pressed={showConfirmPassword}
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-3 top-3 text-ink-soft hover:text-ink"
               >

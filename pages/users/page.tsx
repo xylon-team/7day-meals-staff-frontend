@@ -523,6 +523,10 @@ export function Users() {
                       <td className="px-6 py-4 text-center">
                         <div className="flex justify-center items-center">
                           <button
+                            type="button"
+                            role="switch"
+                            aria-checked={user.status === StaffStatus.ACTIVE}
+                            aria-label={`Active status for ${user.fname} ${user.lname}`}
                             onClick={() => toggleUserStatus(user.id, user.status, `${user.fname} ${user.lname}`)}
                             className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
                               user.status === StaffStatus.ACTIVE ? 'bg-[#0a5c60]' : 'bg-line'

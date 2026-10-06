@@ -247,6 +247,8 @@ export function ForgotPassword() {
                     />
                     <button
                       type="button"
+                      aria-label={showPassword ? 'Hide new password' : 'Show new password'}
+                      aria-pressed={showPassword}
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink"
                     >
@@ -269,6 +271,8 @@ export function ForgotPassword() {
                     />
                     <button
                       type="button"
+                      aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
+                      aria-pressed={showConfirmPassword}
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink"
                     >
