@@ -307,6 +307,7 @@ export function NewOrders() {
   const [selectedPlan, setSelectedPlan] = useState<MealPlan | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>('asc')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterDate, setFilterDate] = useState('')
   const [appliedSearchQuery, setAppliedSearchQuery] = useState('')
@@ -323,6 +324,7 @@ export function NewOrders() {
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
+    setLoadError(false)
     try {
       const [ordersData, plansData] = await Promise.all([getOrders(), getMealPlans()])
       // Only show PENDING orders on this page
@@ -330,6 +332,7 @@ export function NewOrders() {
       setMealPlans(plansData)
     } catch (err) {
       console.error('Error fetching data:', err)
+      setLoadError(true)
       showToast('Failed to load orders or meal plans.', 'error')
     } finally {
       setLoading(false)
@@ -502,6 +505,18 @@ export function NewOrders() {
           <div className="p-12 flex flex-col items-center justify-center gap-2 text-ink-soft">
             <Loader2 className="animate-spin text-primary" size={24} />
             <span className="text-sm font-medium">Loading new orders...</span>
+          </div>
+        ) : loadError ? (
+          <div role="alert" className="p-12 flex flex-col items-center justify-center gap-3 text-ink-soft">
+            <ShoppingBag size={36} className="opacity-40" />
+            <p className="text-sm font-semibold text-ink">Orders could not be loaded.</p>
+            <p className="text-xs">Check your connection and try again.</p>
+            <button
+              onClick={fetchOrders}
+              className="h-10 px-4 text-sm font-semibold text-white bg-primary hover:bg-primary/90 rounded-control transition-colors"
+            >
+              Retry
+            </button>
           </div>
         ) : (
           <div className="overflow-x-auto">

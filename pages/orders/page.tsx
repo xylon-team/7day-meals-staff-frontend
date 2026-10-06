@@ -63,6 +63,7 @@ export function OrderStatusPage() {
 
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterDate, setFilterDate] = useState('')
   const [appliedSearchQuery, setAppliedSearchQuery] = useState('')
@@ -77,12 +78,14 @@ export function OrderStatusPage() {
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
+    setLoadError(false)
     try {
       const data = await getOrders()
       // Only show ACCEPTED, PREPARING, or DELIVERED orders on the Order Status page
       setOrders(data.filter((o) => o.status === 'ACCEPTED' || o.status === 'PREPARING' || o.status === 'DELIVERED'))
     } catch (err) {
       console.error('Error fetching orders:', err)
+      setLoadError(true)
       showToast('Failed to load orders.')
     } finally {
       setLoading(false)
@@ -237,6 +240,18 @@ export function OrderStatusPage() {
           <div className="p-12 flex flex-col items-center justify-center gap-2 text-ink-soft">
             <Loader2 className="animate-spin text-primary" size={24} />
             <span className="text-sm font-medium">Loading orders...</span>
+          </div>
+        ) : loadError ? (
+          <div role="alert" className="p-12 flex flex-col items-center justify-center gap-3 text-ink-soft">
+            <ClipboardList size={36} className="opacity-40" />
+            <p className="text-sm font-semibold text-ink">Orders could not be loaded.</p>
+            <p className="text-xs">Check your connection and try again.</p>
+            <button
+              onClick={fetchOrders}
+              className="h-10 px-4 text-sm font-semibold text-white bg-primary hover:bg-primary/90 rounded-control transition-colors"
+            >
+              Retry
+            </button>
           </div>
         ) : (
           <div className="overflow-x-auto">
