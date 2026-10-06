@@ -24,6 +24,7 @@ import { Badge } from '@/components/Badge'
 import { Button } from '@/components/Button'
 import { Card, CardContent } from '@/components/Card'
 import { Input } from '@/components/Input'
+import { isValidPersonName } from '@/lib/validation/person-name'
 
 
 
@@ -196,15 +197,15 @@ export function Users() {
     // First Name validation
     if (!userFirstName.trim()) {
       newErrors.firstName = 'First name is required'
-    } else if (!/^[A-Za-z]+$/.test(userFirstName.trim())) {
-      newErrors.firstName = 'First name must contain only letters'
+    } else if (!isValidPersonName(userFirstName)) {
+      newErrors.firstName = 'Enter a valid name using letters, spaces, apostrophes, or hyphens'
     }
 
     // Last Name validation
     if (!userLastName.trim()) {
       newErrors.lastName = 'Last name is required'
-    } else if (!/^[A-Za-z]+$/.test(userLastName.trim())) {
-      newErrors.lastName = 'Last name must contain only letters'
+    } else if (!isValidPersonName(userLastName)) {
+      newErrors.lastName = 'Enter a valid name using letters, spaces, apostrophes, or hyphens'
     }
 
     // Phone validation
